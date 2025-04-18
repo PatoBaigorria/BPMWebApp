@@ -1,7 +1,7 @@
 @model List<OperarioSinAuditoriaDTO>
 
 <div class="container-fluid">
-    <h2 class="h3 mb-4 text-gray-800">Operarios sin Auditoría</h2>
+    <h2 class="h2 mb-2 mt-3 text-gray-800">Operarios sin Auditoría</h2>
 
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
@@ -17,17 +17,14 @@
                     <label class="form-label">Hasta:</label>
                     <input type="date" name="hasta" value="@ViewBag.Hasta" class="form-control">
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Filtro de Línea:</label>
-                    <input type="text" name="lineaFilter" value="@ViewBag.LineaFilter" class="form-control" placeholder="Filtrar por línea">
-                </div>
+
                 <div class="col-md-2 d-flex">
                     <button type="submit" class="btn btn-primary me-2">
                         <i class="fas fa-search"></i> Buscar
                     </button>
-                    <a href="@Url.Action("Index", "OperariosSinAuditoria")" class="btn btn-secondary">
+                    <button type="button" id="btnLimpiar" class="btn btn-secondary">
                         <i class="fas fa-undo"></i> Limpiar
-                    </a>
+                    </button>
                 </div>
             </form>
         </div>
@@ -40,17 +37,17 @@
                 <h6 class="m-0 font-weight-bold text-primary">Filtrar por Línea</h6>
             </div>
             <div class="card-body">
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="@Url.Action("Index", "OperariosSinAuditoria", new { desde = ViewBag.Desde, hasta = ViewBag.Hasta })" 
-                       class="btn @(string.IsNullOrEmpty(ViewBag.LineaFilter) ? "btn-primary" : "btn-outline-primary")">
+                <div class="d-flex flex-wrap gap-2" id="lineaChips">
+                    <button type="button" data-linea="" 
+                       class="btn @(string.IsNullOrEmpty(ViewBag.LineaFilter) ? "btn-primary" : "btn-outline-primary") linea-chip">
                         Todas
-                    </a>
+                    </button>
                     @foreach (var linea in ViewBag.Lineas)
                     {
-                        <a href="@Url.Action("Index", "OperariosSinAuditoria", new { desde = ViewBag.Desde, hasta = ViewBag.Hasta, lineaFilter = linea.DescripcionLinea })" 
-                           class="btn @(ViewBag.LineaFilter == linea.DescripcionLinea ? "btn-primary" : "btn-outline-primary")">
+                        <button type="button" data-linea="@linea.DescripcionLinea" 
+                           class="btn @(ViewBag.LineaFilter == linea.DescripcionLinea ? "btn-primary" : "btn-outline-primary") linea-chip">
                             @linea.DescripcionLinea
-                        </a>
+                        </button>
                     }
                 </div>
             </div>
@@ -67,7 +64,7 @@
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Listado de Operarios sin Auditoría</h6>
-            <a href="@Url.Action("ExportarExcel", "OperariosSinAuditoria", new { desde = ViewBag.Desde, hasta = ViewBag.Hasta, lineaFilter = ViewBag.LineaFilter })" class="btn btn-success btn-sm">
+            <a href="@Url.Action("ExportarExcel", "OperariosSinAuditoria", new { desde = ViewBag.Desde, hasta = ViewBag.Hasta, lineaFilter = ViewBag.LineaFilter })" class="btn btn-success">
                 <i class="fas fa-file-excel me-1"></i> Exportar a Excel
             </a>
         </div>
@@ -114,11 +111,42 @@
     
     <script>
         $(document).ready(function () {
-            $('#dataTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
-                },
+            // Inicializar DataTable con la configuración común
+            var config = Object.assign({}, dataTableConfig, {
                 order: [[0, 'asc']]
+            });
+            var table = $('#dataTable').DataTable(config);
+            
+            // Manejar clic en chips de línea
+            $('.linea-chip').on('click', function() {
+                var linea = $(this).data('linea');
+                
+                // Actualizar apariencia de los botones
+                $('.linea-chip').removeClass('btn-primary').addClass('btn-outline-primary');
+                $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+                
+                // Filtrar la tabla
+                if (linea === '') {
+                    // Mostrar todas las filas si se selecciona "Todas"
+                    table.column(2).search('').draw();
+                } else {
+                    // Filtrar por la línea seleccionada
+                    table.column(2).search(linea, true, false).draw();
+                }
+            });
+            
+            // Manejar clic en botón Limpiar
+            $('#btnLimpiar').on('click', function() {
+                // Limpiar los campos de fecha
+                $('input[name="desde"]').val('');
+                $('input[name="hasta"]').val('');
+                
+                // Resetear el filtro de línea seleccionando "Todas"
+                $('.linea-chip').removeClass('btn-primary').addClass('btn-outline-primary');
+                $('.linea-chip[data-linea=""]').removeClass('btn-outline-primary').addClass('btn-primary');
+                
+                // Limpiar el filtro de la tabla
+                table.search('').columns().search('').draw();
             });
         });
     </script>

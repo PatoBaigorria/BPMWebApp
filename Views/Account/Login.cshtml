@@ -125,11 +125,11 @@
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
     
     <script>
-        // Mostrar/ocultar contraseña
+        // Mostrar/ocultar contraseña (corregido)
         document.querySelector('.toggle-password').addEventListener('click', function() {
-            const passwordInput = document.querySelector('input[type="password"]');
+            // Selecciona el input de contraseña por name o id (más robusto)
+            const passwordInput = document.querySelector('input[name="Clave"]');
             const icon = this.querySelector('i');
-            
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
                 icon.classList.remove('bi-eye-fill');

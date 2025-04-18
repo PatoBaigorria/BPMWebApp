@@ -1,14 +1,14 @@
 @model List<SupervisorEstadisticaDTO>
 
 <div class="container-fluid">
-    <h2 class="h3 mb-4 text-gray-800">Cantidad de Auditorías por Supervisor</h2>
+    <h2 class="h3 mb-2 mt-3 text-gray-800">Cantidad de Auditorías por Supervisor</h2>
 
-    <div class="card shadow mb-4">
+    <div class="card shadow mb-2">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
         </div>
         <div class="card-body">
-            <form method="get" class="row g-3">
+            <form method="get" class="row g-2">
                 <div class="col-md-4">
                     <label class="form-label">Desde:</label>
                     <input type="date" name="desde" value="@ViewBag.Desde" class="form-control">
@@ -33,7 +33,7 @@
         </div>
     }
 
-    <div class="card shadow mb-4">
+    <div class="card shadow mb-2">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">Resumen de Auditorías por Supervisor</h6>
         </div>
@@ -83,24 +83,24 @@
     {
         <div class="row">
             <div class="col-xl-6">
-                <div class="card shadow mb-4">
+                <div class="card shadow mb-2">
                     <div class="card-header py-3">
                         <h6 class="m-0 font-weight-bold text-primary">Distribución de Auditorías</h6>
                     </div>
                     <div class="card-body">
-                        <div class="chart-pie pt-4">
+                        <div class="chart-pie pt-2" style="height: 180px;">
                             <canvas id="auditoriasChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-xl-6">
-                <div class="card shadow mb-4">
+                <div class="card shadow mb-2">
                     <div class="card-header py-3">
                         <h6 class="m-0 font-weight-bold text-primary">Comparación de Supervisores</h6>
                     </div>
                     <div class="card-body">
-                        <div class="chart-bar">
+                        <div class="chart-bar" style="height: 180px;">
                             <canvas id="supervisoresChart"></canvas>
                         </div>
                     </div>
@@ -117,12 +117,11 @@
     
     <script>
         $(document).ready(function () {
-            $('#dataTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
-                },
+            // Inicializar DataTable con la configuración común
+            var config = Object.assign({}, dataTableConfig, {
                 order: [[1, 'desc']]
             });
+            var table = $('#dataTable').DataTable(config);
             
             @if (Model != null && Model.Any())
             {

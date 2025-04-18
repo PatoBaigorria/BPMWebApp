@@ -1,14 +1,14 @@
 @model List<Auditoria>
 
 <div class="container-fluid">
-    <h2 class="h3 mb-4 text-gray-800">Auditorías Realizadas</h2>
+    <h2 class="h2 mb-2 mt-3 text-gray-800">Auditorías Realizadas</h2>
 
-    <div class="card shadow mb-4">
+    <div class="card shadow mb-2">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Filtros de Búsqueda</h6>
         </div>
         <div class="card-body">
-            <form method="get" class="row g-3 align-items-end">
+            <form method="get" class="row g-2 align-items-end">
                 <div class="col-md-2">
                     <label class="form-label">Desde:</label>
                     <input type="date" name="desde" value="@ViewBag.Desde" class="form-control">
@@ -17,14 +17,7 @@
                     <label class="form-label">Hasta:</label>
                     <input type="date" name="hasta" value="@ViewBag.Hasta" class="form-control">
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Operario:</label>
-                    <input type="text" name="operario" value="@ViewBag.Operario" class="form-control" placeholder="Nombre o legajo">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Supervisor:</label>
-                    <input type="text" name="supervisor" value="@ViewBag.Supervisor" class="form-control" placeholder="Nombre o legajo">
-                </div>
+
                 <div class="col-md-2 d-flex">
                     <button type="submit" class="btn btn-primary me-2">
                         <i class="fas fa-search"></i> Buscar
@@ -44,11 +37,11 @@
         </div>
     }
 
-    <div class="card shadow mb-4">
+    <div class="card shadow mb-2">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Listado de Auditorías</h6>
             <div>
-                <a href="@Url.Action("Index", "Estadistica")" class="btn btn-sm btn-secondary">
+                <a href="@Url.Action("Index", "Estadistica")" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Volver a Estadísticas
                 </a>
             </div>
@@ -117,12 +110,11 @@
     
     <script>
         $(document).ready(function () {
-            $('#dataTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
-                },
+            // Inicializar DataTable con la configuración común
+            var config = Object.assign({}, dataTableConfig, {
                 order: [[0, 'desc']]
             });
+            var table = $('#dataTable').DataTable(config);
         });
     </script>
 }

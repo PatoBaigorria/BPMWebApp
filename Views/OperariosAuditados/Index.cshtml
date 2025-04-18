@@ -1,79 +1,107 @@
 @model List<BPMWebApp.Models.OperarioAuditoriaResumenDTO>
 
-@{
-    ViewBag.Title = "Operarios Auditados";
-}
+<div class="container-fluid">
+    <h2 class="h3 mb-2 mt-3 text-gray-800">Operarios Auditados</h2>
 
-<h2>Operarios Auditados</h2>
-
-@if (ViewBag.Error != null)
-{
-    <div class="alert alert-danger">@ViewBag.Error</div>
-}
-
-<div class="d-flex justify-content-between mb-3">
-    <form method="get" class="flex-grow-1 me-2">
-        <div class="row">
-            <div class="col-md-3">
-                <label>Desde</label>
-                <input type="date" name="desde" class="form-control" value="@ViewBag.Desde" />
-            </div>
-            <div class="col-md-3">
-                <label>Hasta</label>
-                <input type="date" name="hasta" class="form-control" value="@ViewBag.Hasta" />
-            </div>
-            <div class="col-md-3">
-                <label>Legajo Operario</label>
-                <input type="number" name="legajo" class="form-control" value="@ViewBag.Legajo" />
-            </div>
-            <div class="col-md-3 align-self-end">
-                <button type="submit" class="btn btn-primary">Filtrar</button>
-            </div>
+    <div class="card shadow mb-2">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros de Búsqueda</h6>
         </div>
-    </form>
-    
-    <!-- Botón de exportación a Excel -->
-    <div class="align-self-end">
-        <a href="@Url.Action("ExportarExcel", "OperariosAuditados", new { desde = ViewBag.Desde, hasta = ViewBag.Hasta, legajo = ViewBag.Legajo })" class="btn btn-success">
-            <i class="fas fa-file-excel me-1"></i> Exportar a Excel
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label">Desde:</label>
+                    <input type="date" name="desde" class="form-control form-control-sm" value="@ViewBag.Desde" style="width: 150px;" />
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Hasta:</label>
+                    <input type="date" name="hasta" class="form-control form-control-sm" value="@ViewBag.Hasta" style="width: 150px;" />
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Legajo:</label>
+                    <input type="number" name="legajo" class="form-control form-control-sm" value="@ViewBag.Legajo" style="width: 100px;" />
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <a href="@Url.Action("Index", "OperariosAuditados", new { desde = "", hasta = "", legajo = "" })" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-undo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i> @ViewBag.Error
+        </div>
+    }
+
+<div class="card shadow mb-2">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Listado de Operarios Auditados</h6>
+        <a href="@Url.Action("ExportarExcel", "OperariosAuditados", new { desde = ViewBag.Desde, hasta = ViewBag.Hasta, legajo = ViewBag.Legajo })" class="btn btn-success btn-sm">
+            <i class="fas fa-file-excel"></i> Exportar a Excel
         </a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Legajo</th>
+                        <th>Nombre</th>
+                        <th>Auditorías Positivas</th>
+                        <th>Auditorías Negativas</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var op in Model)
+                    {
+                        <tr>
+                            <td>@op.Legajo</td>
+                            <td>@op.Nombre</td>
+                            <td><span class="badge bg-success">@op.AuditoriasPositivas</span></td>
+                            <td><span class="badge bg-danger">@op.AuditoriasNegativas</span></td>
+                            <td>
+                                @if (op.AuditoriasNegativas > 0)
+                                {
+                                    <a href="@Url.Action("Detalle", "OperariosAuditados", new { legajo = op.Legajo })" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i> Detalles
+                                    </a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="text-center">No se encontraron resultados.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<table class="table table-bordered table-striped">
-    <thead>
-        <tr>
-            <th>Legajo</th>
-            <th>Nombre</th>
-            <th>Auditorías Positivas</th>
-            <th>Auditorías Negativas</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-    @if (Model != null && Model.Any())
-    {
-        foreach (var op in Model)
-        {
-            <tr>
-                <td>@op.Legajo</td>
-                <td>@op.Nombre</td>
-                <td><span class="badge bg-success">@op.AuditoriasPositivas</span></td>
-                <td><span class="badge bg-danger">@op.AuditoriasNegativas</span></td>
-                <td>
-                    @if (op.AuditoriasNegativas > 0)
-                    {
-                        <a href="@Url.Action("Detalle", "OperariosAuditados", new { legajo = op.Legajo })" class="btn btn-warning btn-sm">Detalles</a>
-                    }
-                </td>
-            </tr>
-        }
-    }
-    else
-    {
-        <tr>
-            <td colspan="5" class="text-center">No se encontraron resultados.</td>
-        </tr>
-    }
-    </tbody>
-</table>
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Aplicar estilos básicos a la tabla para que se vea bien sin DataTables
+            $('#dataTable').addClass('table-striped');
+            $('#dataTable thead th').css({
+                'background-color': '#f8f9fc',
+                'color': '#4e73df',
+                'font-weight': 'bold'
+            });
+        });
+    </script>
+}

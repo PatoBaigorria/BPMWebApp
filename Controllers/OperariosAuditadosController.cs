@@ -25,8 +25,22 @@ namespace BPMWebApp.Controllers
         {
             try
             {
-                desde ??= DateTime.Today.AddMonths(-1);
-                hasta ??= DateTime.Today;
+                // Si las fechas están vacías (cadenas vacías en la URL), establecerlas como null
+                if (Request.Query.ContainsKey("desde") && string.IsNullOrEmpty(Request.Query["desde"]))
+                    desde = null;
+                if (Request.Query.ContainsKey("hasta") && string.IsNullOrEmpty(Request.Query["hasta"]))
+                    hasta = null;
+                if (Request.Query.ContainsKey("legajo") && string.IsNullOrEmpty(Request.Query["legajo"]))
+                    legajo = null;
+
+                // Si no hay fechas, mostrar la vista sin datos
+                if (desde == null || hasta == null)
+                {
+                    ViewBag.Desde = desde?.ToString("yyyy-MM-dd");
+                    ViewBag.Hasta = hasta?.ToString("yyyy-MM-dd");
+                    ViewBag.Legajo = legajo;
+                    return View(new List<OperarioAuditoriaResumenDTO>());
+                }
 
                 _logger?.LogInformation($"Obteniendo resumen de operarios auditados desde {desde:yyyy-MM-dd} hasta {hasta:yyyy-MM-dd}");
                 
@@ -42,8 +56,8 @@ namespace BPMWebApp.Controllers
             {
                 _logger?.LogError($"Error al obtener resumen de operarios auditados: {ex.Message}");
                 ViewBag.Error = $"Error al obtener datos: {ex.Message}";
-                ViewBag.Desde = desde?.ToString("yyyy-MM-dd") ?? DateTime.Today.AddMonths(-1).ToString("yyyy-MM-dd");
-                ViewBag.Hasta = hasta?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd");
+                ViewBag.Desde = desde?.ToString("yyyy-MM-dd");
+                ViewBag.Hasta = hasta?.ToString("yyyy-MM-dd");
                 ViewBag.Legajo = legajo;
                 return View(new List<OperarioAuditoriaResumenDTO>());
             }
