@@ -1,0 +1,103 @@
+@model List<object>
+
+@{
+    ViewBag.Title = "Detalles de Auditorías Negativas";
+}
+
+<div class="container mt-4">
+    <h2>Detalles de Auditorías Negativas</h2>
+    <h4>Operario: @ViewBag.NombreOperario (Legajo: @ViewBag.Legajo)</h4>
+
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger">@ViewBag.Error</div>
+    }
+
+    <div class="mb-3 text-end">
+        <a href="@Url.Action("Index", "OperariosAuditados")" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al listado
+        </a>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Items con Estado No OK</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Descripción del Item</th>
+                            <th>Cantidad de Ocurrencias</th>
+                            <th>Comentarios</th>
+                            <th>Firma</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            try
+                            {
+                                // Convertir el objeto a un diccionario dinámico para acceder a sus propiedades
+                                var itemDict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>>(System.Text.Json.JsonSerializer.Serialize(item));
+                                
+                                <tr>
+                                    <td>@(itemDict.ContainsKey("descripcion") ? itemDict["descripcion"].ToString() : 
+                                          itemDict.ContainsKey("Descripcion") ? itemDict["Descripcion"].ToString() : "Sin descripción")</td>
+                                    
+                                    <td>
+                                        <span class="badge bg-danger">
+                                            @(itemDict.ContainsKey("count") ? itemDict["count"].ToString() : 
+                                              itemDict.ContainsKey("Count") ? itemDict["Count"].ToString() : "0")
+                                        </span>
+                                    </td>
+                                    
+                                    <td>
+                                        @if ((itemDict.ContainsKey("comentariosAuditoria") && itemDict["comentariosAuditoria"].ValueKind == System.Text.Json.JsonValueKind.Array) ||
+                                             (itemDict.ContainsKey("ComentariosAuditoria") && itemDict["ComentariosAuditoria"].ValueKind == System.Text.Json.JsonValueKind.Array))
+                                        {
+                                            var comentarios = itemDict.ContainsKey("comentariosAuditoria") ? 
+                                                            itemDict["comentariosAuditoria"] : itemDict["ComentariosAuditoria"];
+                                            
+                                            <ul class="list-group">
+                                                @foreach (var comentario in comentarios.EnumerateArray())
+                                                {
+                                                    if (!string.IsNullOrEmpty(comentario.ToString()))
+                                                    {
+                                                        <li class="list-group-item">@comentario.ToString()</li>
+                                                    }
+                                                }
+                                            </ul>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Sin comentarios</span>
+                                        }
+                                    </td>
+                                    
+                                    <td>
+                                        <span class="badge bg-danger">No Conforme</span>
+                                    </td>
+                                </tr>
+                            }
+                            catch (Exception ex)
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-danger">Error al procesar item: @ex.Message</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            No se encontraron items con estado No OK para este operario.
+        </div>
+    }
+</div>

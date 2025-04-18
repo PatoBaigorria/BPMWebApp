@@ -1,0 +1,162 @@
+@model BPMWebApp.Models.LoginView
+
+<style>
+    :root {
+        --primary-color: #4e73df;
+        --secondary-color: #f8f9fc;
+    }
+    
+    .login-page {
+        background-color: #f8f9fc;
+        background-image: linear-gradient(180deg, #f8f9fc 10%, #e9ecef 100%);
+        min-height: 100vh;
+    }
+    
+    .login-container {
+        max-width: 450px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .login-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        border: none;
+        overflow: hidden;
+        margin-top: 5rem;
+    }
+    
+    .login-logo {
+        border-radius: 50%;
+        background-color: var(--secondary-color);
+        padding: 10px;
+    }
+    
+    .login-title {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .login-form .input-group-text {
+        background-color: var(--secondary-color);
+        border-right: none;
+    }
+    
+    .login-form .form-control {
+        border-left: none;
+    }
+    
+    .login-form .form-control:focus {
+        box-shadow: none;
+        border-color: #ced4da;
+    }
+    
+    .login-form .btn-primary {
+        background-color: var(--primary-color);
+        border: none;
+        padding: 10px;
+        font-weight: 600;
+    }
+    
+    .login-form .btn-primary:hover {
+        background-color: #3a5ccc;
+    }
+    
+    .login-form .toggle-password {
+        cursor: pointer;
+    }
+</style>
+
+<div class="login-page">
+    <div class="login-container">
+        <div class="card login-card">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <img src="~/images/ic_logocalidad.png" alt="Logo" class="login-logo mb-3" style="width: 180px; height: 180px;">
+                    <h2 class="login-title">Bienvenida al Sistema</h2>
+                    <p class="text-muted">Ingresa tus credenciales para continuar</p>
+                </div>
+
+                <form asp-action="Login" method="post" class="needs-validation login-form" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Legajo" class="form-label">Legajo</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-person-fill"></i>
+                            </span>
+                            <input asp-for="Legajo" class="form-control form-control-lg" placeholder="Ingresa tu legajo" required>
+                        </div>
+                        <span asp-validation-for="Legajo" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Clave" class="form-label">Contraseña</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-lock-fill"></i>
+                            </span>
+                            <input asp-for="Clave" type="password" class="form-control form-control-lg" placeholder="Ingresa tu contraseña" required>
+                            <button class="btn btn-outline-secondary toggle-password" type="button">
+                                <i class="bi bi-eye-fill"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Clave" class="text-danger small"></span>
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
+                        </button>
+                    </div>
+
+                    <div class="text-center">
+                        <a href="#" class="text-decoration-none">¿Olvidaste tu contraseña?</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        // Mostrar/ocultar contraseña
+        document.querySelector('.toggle-password').addEventListener('click', function() {
+            const passwordInput = document.querySelector('input[type="password"]');
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('bi-eye-fill');
+                icon.classList.add('bi-eye-slash-fill');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('bi-eye-slash-fill');
+                icon.classList.add('bi-eye-fill');
+            }
+        });
+        
+        // Validación de formulario
+        (function() {
+            'use strict'
+            
+            const forms = document.querySelectorAll('.needs-validation')
+            
+            Array.from(forms).forEach(form => {
+                form.addEventListener('submit', event => {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    
+                    form.classList.add('was-validated')
+                }, false)
+            })
+        })()
+    </script>
+}

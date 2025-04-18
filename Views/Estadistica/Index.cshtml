@@ -1,0 +1,239 @@
+@model List<SupervisorEstadisticaDTO>
+
+<div class="container-fluid">
+    <h2 class="h3 mb-4 text-gray-800">Cantidad de Auditorías por Supervisor</h2>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Desde:</label>
+                    <input type="date" name="desde" value="@ViewBag.Desde" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Hasta:</label>
+                    <input type="date" name="hasta" value="@ViewBag.Hasta" class="form-control">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i> @ViewBag.Error
+        </div>
+    }
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Resumen de Auditorías por Supervisor</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>Supervisor</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">Auditorías Positivas</th>
+                            <th class="text-center">Auditorías Negativas</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>@($"{item.Supervisor?.Apellido}, {item.Supervisor?.Nombre}")</td>
+                                    <td class="text-center">@item.TotalAudits</td>
+                                    <td class="text-center">@item.PositiveAudits</td>
+                                    <td class="text-center">@item.NegativeAudits</td>
+                                    <td class="text-center">
+                                        <a href="@Url.Action("Index", "AuditoriasRealizadas", new { supervisor = item.Supervisor?.Apellido })" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> Ver Auditorías
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center">No se encontraron auditorías en el período seleccionado.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="row">
+            <div class="col-xl-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Distribución de Auditorías</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-pie pt-4">
+                            <canvas id="auditoriasChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Comparación de Supervisores</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-bar">
+                            <canvas id="supervisoresChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        $(document).ready(function () {
+            $('#dataTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
+                },
+                order: [[1, 'desc']]
+            });
+            
+            @if (Model != null && Model.Any())
+            {
+                // Preparar los datos para los gráficos en el lado del servidor
+                var totalPositivas = Model.Sum(m => m.PositiveAudits);
+                var totalNegativas = Model.Sum(m => m.NegativeAudits);
+                
+                var supervisores = new List<string>();
+                var positivas = new List<int>();
+                var negativas = new List<int>();
+                
+                foreach (var item in Model.Take(5))
+                {
+                    supervisores.Add($"{item.Supervisor?.Apellido}, {item.Supervisor?.Nombre}");
+                    positivas.Add(item.PositiveAudits);
+                    negativas.Add(item.NegativeAudits);
+                }
+                
+                var supervisoresJson = System.Text.Json.JsonSerializer.Serialize(supervisores);
+                var positivasJson = System.Text.Json.JsonSerializer.Serialize(positivas);
+                var negativasJson = System.Text.Json.JsonSerializer.Serialize(negativas);
+                
+                <text>
+                // Datos para el gráfico de torta (Total de auditorías positivas vs negativas)
+                var totalPositivas = @totalPositivas;
+                var totalNegativas = @totalNegativas;
+                
+                var pieCtx = document.getElementById('auditoriasChart').getContext('2d');
+                var pieChart = new Chart(pieCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Positivas', 'Negativas'],
+                        datasets: [{
+                            data: [totalPositivas, totalNegativas],
+                            backgroundColor: ['#1cc88a', '#e74a3b'],
+                            hoverBackgroundColor: ['#17a673', '#c93a2d'],
+                            hoverBorderColor: "rgba(234, 236, 244, 1)",
+                        }],
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        tooltips: {
+                            backgroundColor: "rgb(255,255,255)",
+                            bodyFontColor: "#858796",
+                            borderColor: '#dddfeb',
+                            borderWidth: 1,
+                            xPadding: 15,
+                            yPadding: 15,
+                            displayColors: false,
+                            caretPadding: 10,
+                        },
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        },
+                        cutoutPercentage: 80,
+                    },
+                });
+                
+                // Datos para el gráfico de barras (Comparación de supervisores)
+                var supervisores = @Html.Raw(supervisoresJson);
+                var positivas = @Html.Raw(positivasJson);
+                var negativas = @Html.Raw(negativasJson);
+                
+                var barCtx = document.getElementById('supervisoresChart').getContext('2d');
+                var barChart = new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: supervisores,
+                        datasets: [
+                            {
+                                label: "Positivas",
+                                backgroundColor: "#1cc88a",
+                                data: positivas,
+                            },
+                            {
+                                label: "Negativas",
+                                backgroundColor: "#e74a3b",
+                                data: negativas,
+                            }
+                        ],
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {
+                            xAxes: [{
+                                stacked: false,
+                                gridLines: {
+                                    display: false,
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                }
+                            }],
+                            yAxes: [{
+                                stacked: false,
+                                ticks: {
+                                    beginAtZero: true
+                                }
+                            }],
+                        },
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    }
+                });
+                </text>
+            }
+        });
+    </script>
+}

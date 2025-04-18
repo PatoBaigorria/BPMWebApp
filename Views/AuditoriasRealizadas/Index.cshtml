@@ -1,0 +1,128 @@
+@model List<Auditoria>
+
+<div class="container-fluid">
+    <h2 class="h3 mb-4 text-gray-800">Auditorías Realizadas</h2>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros de Búsqueda</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label">Desde:</label>
+                    <input type="date" name="desde" value="@ViewBag.Desde" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta:</label>
+                    <input type="date" name="hasta" value="@ViewBag.Hasta" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Operario:</label>
+                    <input type="text" name="operario" value="@ViewBag.Operario" class="form-control" placeholder="Nombre o legajo">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Supervisor:</label>
+                    <input type="text" name="supervisor" value="@ViewBag.Supervisor" class="form-control" placeholder="Nombre o legajo">
+                </div>
+                <div class="col-md-2 d-flex">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <a href="@Url.Action("Index", "AuditoriasRealizadas")" class="btn btn-secondary">
+                        <i class="fas fa-undo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i> @ViewBag.Error
+        </div>
+    }
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Listado de Auditorías</h6>
+            <div>
+                <a href="@Url.Action("Index", "Estadistica")" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver a Estadísticas
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Supervisor</th>
+                            <th>Legajo Sup.</th>
+                            <th>Operario</th>
+                            <th>Legajo Op.</th>
+                            <th>Actividad</th>
+                            <th>Línea</th>
+                            <th>Firma</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            @foreach (var auditoria in Model)
+                            {
+                                // Verificar si la auditoría tiene al menos un ítem NO OK
+                                bool tieneItemNoOk = auditoria.AuditoriaItems?.Any(i => i.Estado == EstadoEnum.NOOK) ?? false;
+                                var badgeClass = tieneItemNoOk ? "bg-danger" : "bg-success";
+                                var estadoTexto = tieneItemNoOk ? "No Conforme" : "Conforme";
+                                
+                                <tr>
+                                    <td>@auditoria.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td>@($"{auditoria.Supervisor?.Apellido}, {auditoria.Supervisor?.Nombre}")</td>
+                                    <td>@auditoria.Supervisor?.Legajo</td>
+                                    <td>@($"{auditoria.Operario?.Apellido}, {auditoria.Operario?.Nombre}")</td>
+                                    <td>@auditoria.Operario?.Legajo</td>
+                                    <td>@auditoria.Actividad?.Descripcion</td>
+                                    <td>@auditoria.Linea?.Descripcion</td>
+                                    <td>
+                                        <span class="badge @badgeClass">@estadoTexto</span>
+                                    </td>
+                                    <td>
+                                        <a href="@Url.Action("Detalle", "AuditoriasRealizadas", new { id = auditoria.IdAuditoria })" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> Detalles
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="9" class="text-center">No se encontraron auditorías con los filtros seleccionados.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    
+    <script>
+        $(document).ready(function () {
+            $('#dataTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
+                },
+                order: [[0, 'desc']]
+            });
+        });
+    </script>
+}
