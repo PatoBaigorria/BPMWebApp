@@ -61,6 +61,52 @@ namespace BPMWebApp.Controllers
                 ViewBag.ItemsNOOK = auditoria.AuditoriaItems.Where(i => i.Estado == EstadoEnum.NOOK).ToList();
                 ViewBag.ItemsNA = auditoria.AuditoriaItems.Where(i => i.Estado == EstadoEnum.NA).ToList();
                 
+                // Obtener la firma digital del operario si existe
+                Console.WriteLine($"\n\n==== INTENTANDO OBTENER FIRMA DIGITAL ====\n");
+                
+                if (auditoria.Operario != null)
+                {
+                    Console.WriteLine($"Operario encontrado: {auditoria.Operario.Nombre} {auditoria.Operario.Apellido}");
+                    Console.WriteLine($"ID Operario: {auditoria.Operario.IdOperario}");
+                    
+                    if (auditoria.Operario.IdOperario > 0)
+                    {
+                        try
+                        {
+                            Console.WriteLine($"Llamando a GetFirmaDigitalOperarioAsync con ID: {auditoria.Operario.IdOperario}");
+                            var firmaSvg = await _apiService.GetFirmaDigitalOperarioAsync(auditoria.Operario.IdOperario);
+                            
+                            if (firmaSvg != null)
+                            {
+                                Console.WriteLine($"Firma obtenida correctamente, longitud: {firmaSvg.Length} caracteres");
+                                ViewBag.FirmaDigitalSvg = firmaSvg;
+                            }
+                            else
+                            {
+                                Console.WriteLine("La firma devuelta es NULL");
+                                ViewBag.FirmaDigitalSvg = null;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // Si hay error al obtener la firma, solo lo registramos pero no interrumpimos
+                            // la carga de la vista
+                            Console.WriteLine($"Error al obtener firma digital: {ex.Message}");
+                            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"ID Operario no válido: {auditoria.Operario.IdOperario}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Operario es NULL en la auditoría");
+                }
+                
+                Console.WriteLine($"\n==== FIN INTENTO OBTENER FIRMA DIGITAL ====\n\n");
+                
                 return View(auditoria);
             }
             catch (Exception ex)

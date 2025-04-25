@@ -1,0 +1,657 @@
+@model Auditoria
+
+<div class="container-fluid">
+    <h2 class="h4 mb-4 text-gray-800">Detalle de Auditoría</h2>
+
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i> @ViewBag.Error
+        </div>
+    }
+    
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="fas fa-check-circle"></i> @TempData["Success"]
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+    
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="fas fa-exclamation-triangle"></i> @TempData["Error"]
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Información General</h6>
+                    <div>
+                        <a href="@Url.Action("ExportarAuditoriaExcel", "AuditoriasRealizadas", new { id = Model.IdAuditoria })" class="btn btn-sm btn-success me-2">
+                            <i class="fas fa-file-excel"></i> Exportar a Excel
+                        </a>
+                        <a href="@Url.Action("Index", "AuditoriasRealizadas")" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver a Auditorías
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush" style="font-size:0.91rem;">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>ID Auditoría:</strong></span>
+                                    <span>@Model.IdAuditoria</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Fecha:</strong></span>
+                                    <span>@Model.Fecha.ToString("dd/MM/yyyy")</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Supervisor:</strong></span>
+                                    <span>@($"{Model.Supervisor?.Apellido}, {Model.Supervisor?.Nombre}")</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Legajo Supervisor:</strong></span>
+                                    <span>@Model.Supervisor?.Legajo</span>
+                                </li>
+
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Estado:</strong></span>
+                                    @{
+                                        var badgeClass = Model.NoConforme ? "bg-danger" : "bg-success";
+                                        var estadoTexto = Model.NoConforme ? "No Conforme" : "Conforme";
+                                    }
+                                    <span class="badge @badgeClass">@estadoTexto</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Firma digital:</strong></span>
+                                    <span>
+                                        @if (!string.IsNullOrEmpty(ViewBag.FirmaDigitalSvg))
+                                        {
+                                            <div style="max-width:120px; max-height:60px; background-color:#f8f9fa; padding:2px; border-radius:3px;">
+                                                @Html.Raw(ViewBag.FirmaDigitalSvg)
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div id="firma-container">
+                                                <em class="text-muted small">Sin firma registrada</em>
+                                                @if (Model.Operario != null && Model.Operario.IdOperario > 0)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-primary mt-1" 
+                                                            onclick="cargarFirmaDirecta(@Model.Operario.IdOperario)">
+                                                        <i class="fas fa-sync-alt"></i> Cargar firma
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush" style="font-size:0.91rem;">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Operario:</strong></span>
+                                    <span>@($"{Model.Operario?.Apellido}, {Model.Operario?.Nombre}")</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Legajo Operario:</strong></span>
+                                    <span>@Model.Operario?.Legajo</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Línea:</strong></span>
+                                    <span>@Model.Linea?.Descripcion</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Actividad Realizada:</strong></span>
+                                    <span>@Model.Actividad?.Descripcion</span>
+                                </li>
+
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Total de Ítems Auditados:</strong></span>
+                                    <span>@(Model.AuditoriaItems?.Count ?? 0)</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                                        
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="m-0 font-weight-bold text-primary">Comentario</h6>
+                                </div>
+                                <div class="card-body">
+                                    @if (!string.IsNullOrEmpty(Model.Comentario))
+                                    {
+                                        @Model.Comentario
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Sin comentarios</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Ítems Auditados</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover table-sm" id="itemsTable" style="font-size:0.92rem;">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Ítems BPM</th>
+                                    <th class="text-center" style="width: 150px;">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.AuditoriaItems != null && Model.AuditoriaItems.Any())
+                                {
+                                    @foreach (var item in Model.AuditoriaItems.OrderBy(i => i.ItemBPM?.Descripcion))
+                                    {
+                                        var estadoClass = "";
+                                        var itemEstadoTexto = "";
+                                        
+                                        switch (item.Estado)
+                                        {
+                                            case EstadoEnum.OK:
+                                                estadoClass = "text-success";
+                                                itemEstadoTexto = "OK";
+                                                break;
+                                            case EstadoEnum.NOOK:
+                                                estadoClass = "text-danger";
+                                                itemEstadoTexto = "NO OK";
+                                                break;
+                                            case EstadoEnum.NA:
+                                                estadoClass = "text-warning";
+                                                itemEstadoTexto = "N/A";
+                                                break;
+                                        }
+                                        
+                                        <tr>
+                                            <td>@item.ItemBPM?.Descripcion</td>
+                                            <td class="text-center @estadoClass" style="font-weight: 500;">@itemEstadoTexto</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="2" class="text-center">No hay ítems asociados a esta auditoría.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    @section Scripts {
+        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+        <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+        
+        <script>
+            // Función para cargar la firma digital directamente desde la API
+            function cargarFirmaDirecta(idOperario) {
+                if (!idOperario) {
+                    console.error('ID de operario no válido');
+                    return;
+                }
+                
+                const firmaContainer = document.getElementById('firma-container');
+                if (!firmaContainer) {
+                    console.error('Contenedor de firma no encontrado');
+                    return;
+                }
+                
+                firmaContainer.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>';
+                
+                // Usar la URL base de la aplicación actual en lugar de hardcodear localhost
+                const apiUrl = window.location.protocol + '//' + window.location.hostname + ':5222/FirmaPatron/operario/' + idOperario;
+                console.log('URL de API para firma:', apiUrl);
+                
+                fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': 'Bearer ' + getCookie('jwt_token')
+                    }
+                    
+                    // Enfoque simple para mostrar la firma
+                    try {
+                        // Crear un elemento img con la firma como data URI
+                        const img = document.createElement('img');
+                        img.style.maxWidth = '100%';
+                        img.style.maxHeight = '100%';
+                        img.alt = 'Firma digital';
+                        
+                        // Extraer solo la parte SVG si hay declaración XML
+                        let firmaSvg = data.firma;
+                        if (firmaSvg.includes('<?xml') && firmaSvg.includes('<svg')) {
+                            firmaSvg = firmaSvg.substring(firmaSvg.indexOf('<svg'));
+                        }
+                        
+                        // Crear data URI con el SVG
+                        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(firmaSvg)));
+                        
+                        // Crear contenedor para la firma
+                        const contenedor = document.createElement('div');
+                        contenedor.style.width = '120px';
+                        contenedor.style.height = '60px';
+                        contenedor.style.backgroundColor = '#f8f9fa';
+                        contenedor.style.padding = '3px';
+                        contenedor.style.borderRadius = '3px';
+                        contenedor.style.border = '1px solid #ddd';
+                        contenedor.style.display = 'flex';
+                        contenedor.style.alignItems = 'center';
+                        contenedor.style.justifyContent = 'center';
+                        contenedor.appendChild(img);
+                        
+                        // Crear botones
+                        const botones = document.createElement('div');
+                        botones.className = 'mt-1';
+                        botones.innerHTML = `
+                            <button class="btn btn-sm btn-link p-0" style="font-size:0.8rem;" onclick="mostrarDetallesFirma()">Ver detalles</button>
+                            <button class="btn btn-sm btn-link p-0 ms-2" style="font-size:0.8rem;" onclick="mostrarFirmaAlternativa()">Alt. vista</button>
+                        `;
+                        
+                        // Limpiar y agregar elementos
+                        firmaContainer.innerHTML = '';
+                        firmaContainer.appendChild(contenedor);
+                        firmaContainer.appendChild(botones);
+                    } catch (error) {
+                        console.error('Error al procesar la firma:', error);
+                        firmaContainer.innerHTML = `
+                            <div class="text-danger small">Error al procesar firma: ${error.message}</div>
+                            <button class="btn btn-sm btn-link mt-1 p-0" style="font-size:0.8rem;" onclick="mostrarDetallesFirma()">Ver detalles</button>
+                        `;
+                    }
+                } else {
+                    firmaContainer.innerHTML = '<em class="text-muted small">Sin firma en la respuesta</em>';
+                    console.error('No se encontró firma en la respuesta', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar la firma:', error);
+                firmaContainer.innerHTML = `<em class="text-danger small">Error: ${error.message}</em>`;
+            });
+        }
+        
+        // Función para obtener cookies
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
+        
+        // Función para procesar y limpiar el SVG
+        function procesarSVG(svgString) {
+            if (!svgString) return '';
+            
+            console.log('SVG original (primeros 200 caracteres):', svgString.substring(0, 200));
+            
+            // Verificar si es realmente un SVG
+            if (!svgString.includes('<svg') && !svgString.includes('<?xml')) {
+                console.error('La cadena no parece contener un SVG válido');
+                return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
+                    <text x="10" y="25" fill="red">SVG inválido</text>
+                </svg>`;
+            }
+            
+            try {
+                // Si la firma comienza con <?xml, eliminar esa parte
+                let firmaSvg = svgString;
+                
+                // Buscar todas las declaraciones XML y eliminarlas
+                while (firmaSvg.includes('<?xml')) {
+                    const xmlStart = firmaSvg.indexOf('<?xml');
+                    const xmlEnd = firmaSvg.indexOf('?>', xmlStart);
+                    
+                    if (xmlEnd > xmlStart) {
+                        // Eliminar la declaración XML
+                        firmaSvg = firmaSvg.substring(0, xmlStart) + firmaSvg.substring(xmlEnd + 2);
+                        console.log('Eliminada declaración XML');
+                    } else {
+                        // Si no encontramos el cierre, simplemente tomamos desde la etiqueta svg
+                        if (firmaSvg.includes('<svg')) {
+                            firmaSvg = firmaSvg.substring(firmaSvg.indexOf('<svg'));
+                        }
+                        break;
+                    }
+                }
+                
+                console.log('SVG sin XML (primeros 200 caracteres):', firmaSvg.substring(0, 200));
+                
+                // Asegurarse de que tenga atributos de ancho y alto
+                if (!firmaSvg.includes('width=') && !firmaSvg.includes('height=')) {
+                    firmaSvg = firmaSvg.replace('<svg', '<svg width="100%" height="100%"');
+                    console.log('SVG con dimensiones (primeros 200 caracteres):', firmaSvg.substring(0, 200));
+                }
+                
+                // Asegurarse de que tenga el namespace de SVG
+                if (!firmaSvg.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                    firmaSvg = firmaSvg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+                
+                return firmaSvg;
+            } catch (error) {
+                console.error('Error al procesar SVG:', error);
+                return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
+                    <text x="10" y="25" fill="red">Error: ${error.message}</text>
+                </svg>`;
+            }
+        }
+        
+        // Función para mostrar la firma con un enfoque alternativo
+        function mostrarFirmaAlternativa() {
+            if (!window.firmaData || !window.firmaData.firma) {
+                alert('No hay datos de firma disponibles');
+                return;
+            }
+            
+            // Mostrar la firma en un nuevo div usando diferentes enfoques
+            const modalHtml = `
+            <div class="modal fade" id="firmaAlternativaModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Visualización Alternativa de Firma</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <h6>1. Como SVG directo:</h6>
+                                    <div style="width:100%; height:100px; background-color:#f8f9fa; padding:5px; border:1px solid #ddd;" id="svgDirectContainer">
+                                    </div>
+                                    <script>
+                                        (function() {
+                                            try {
+                                                let svgString = window.firmaData.firma;
+                                                
+                                                // Eliminar todas las declaraciones XML
+                                                while (svgString.includes('<?xml')) {
+                                                    const xmlStart = svgString.indexOf('<?xml');
+                                                    const xmlEnd = svgString.indexOf('?>', xmlStart);
+                                                    
+                                                    if (xmlEnd > xmlStart) {
+                                                        svgString = svgString.substring(0, xmlStart) + svgString.substring(xmlEnd + 2);
+                                                    } else {
+                                                        if (svgString.includes('<svg')) {
+                                                            svgString = svgString.substring(svgString.indexOf('<svg'));
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+                                                
+                                                // Asegurarse de que tenga el namespace correcto
+                                                if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                                                    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                                                }
+                                                
+                                                // Asegurarse de que tenga dimensiones
+                                                if (!svgString.includes('width=') && !svgString.includes('height=')) {
+                                                    svgString = svgString.replace('<svg', '<svg width="100%" height="100%"');
+                                                }
+                                                
+                                                document.getElementById('svgDirectContainer').innerHTML = svgString;
+                                            } catch (error) {
+                                                console.error('Error al mostrar SVG directo:', error);
+                                                document.getElementById('svgDirectContainer').innerHTML = '<div class="text-danger">Error al procesar SVG</div>';
+                                            }
+                                        })();
+                                    </script>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <h6>2. Como imagen (data URI):</h6>
+                                    <div style="width:100%; height:100px; background-color:#f8f9fa; padding:5px; border:1px solid #ddd; display:flex; align-items:center; justify-content:center;" id="svgImgContainer">
+                                    </div>
+                                    <script>
+                                        (function() {
+                                            try {
+                                                let svgString = window.firmaData.firma;
+                                                
+                                                // Eliminar todas las declaraciones XML
+                                                while (svgString.includes('<?xml')) {
+                                                    const xmlStart = svgString.indexOf('<?xml');
+                                                    const xmlEnd = svgString.indexOf('?>', xmlStart);
+                                                    
+                                                    if (xmlEnd > xmlStart) {
+                                                        svgString = svgString.substring(0, xmlStart) + svgString.substring(xmlEnd + 2);
+                                                    } else {
+                                                        if (svgString.includes('<svg')) {
+                                                            svgString = svgString.substring(svgString.indexOf('<svg'));
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+                                                
+                                                // Asegurarse de que tenga el namespace correcto
+                                                if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                                                    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                                                }
+                                                
+                                                const img = document.createElement('img');
+                                                img.style.maxHeight = '90px';
+                                                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+                                                document.getElementById('svgImgContainer').appendChild(img);
+                                            } catch (error) {
+                                                console.error('Error al mostrar SVG como imagen:', error);
+                                                document.getElementById('svgImgContainer').innerHTML = '<div class="text-danger">Error al procesar SVG</div>';
+                                            }
+                                        })();
+                                    </script>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <h6>3. Como texto (primeros 200 caracteres):</h6>
+                                    <pre class="bg-light p-2 small" style="overflow:auto;">${window.firmaData.firma ? window.firmaData.firma.substring(0, 200) + '...' : 'No disponible'}</pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+            
+            // Agregar el modal al DOM
+            const modalContainer = document.createElement('div');
+            modalContainer.innerHTML = modalHtml;
+            document.body.appendChild(modalContainer.firstElementChild);
+            
+            // Mostrar el modal
+            const modal = new bootstrap.Modal(document.getElementById('firmaAlternativaModal'));
+            modal.show();
+            
+            // Eliminar el modal del DOM cuando se cierre
+            document.getElementById('firmaAlternativaModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        }
+        
+        // Función para mostrar detalles de la firma
+        function mostrarDetallesFirma() {
+            // Usar la firma ya cargada si está disponible
+            if (window.firmaData && window.firmaData.firma) {
+                mostrarDetallesFirmaModal(window.firmaData);
+                return;
+            }
+            
+            // Si no tenemos la firma, obtenerla desde la API
+            const idOperario = @(Model.Operario?.IdOperario ?? 0);
+            if (!idOperario) {
+                alert('No se puede obtener la firma: ID de operario no válido');
+                return;
+            }
+            
+            const apiUrl = 'http://localhost:5222/FirmaPatron/operario/' + idOperario;
+            
+            fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer ' + getCookie('jwt_token')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.firma) {
+                    // Guardar para uso futuro
+                    window.firmaData = data;
+                    mostrarDetallesFirmaModal(data);
+                } else {
+                    alert('No se encontraron detalles de la firma');
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener detalles de la firma:', error);
+                alert('Error al obtener detalles de la firma: ' + error.message);
+            });
+        }
+        
+        // Función para mostrar el modal con los detalles de la firma
+        function mostrarDetallesFirmaModal(data) {
+            // Crear un modal para mostrar los detalles
+            const modalHtml = `
+            <div class="modal fade" id="firmaDetallesModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Detalles de la Firma Digital</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Visualización de la firma:</h6>
+                                    <div style="width:100%; height:200px; background-color:#f8f9fa; padding:10px; border-radius:5px; border:1px solid #ddd; display:flex; align-items:center; justify-content:center;">
+                                        <img id="modalFirmaImg" style="max-width:100%; max-height:100%;" alt="Firma digital" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Información técnica:</h6>
+                                    <ul class="list-group list-group-flush small">
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>ID Firma:</span>
+                                            <span>${data.idFirmaPatron}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>ID Operario:</span>
+                                            <span>${data.idOperario}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Fecha creación:</span>
+                                            <span>${new Date(data.fechaCreacion).toLocaleString()}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Activa:</span>
+                                            <span>${data.activa ? 'Sí' : 'No'}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Longitud SVG:</span>
+                                            <span>${data.firma ? data.firma.length : 0} caracteres</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6>Código SVG (primeros 500 caracteres):</h6>
+                                    <pre class="bg-light p-2 small" style="max-height:150px; overflow:auto;">${data.firma ? data.firma.substring(0, 500) + '...' : 'No disponible'}</pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+            
+            // Agregar el modal al DOM
+            const modalContainer = document.createElement('div');
+            modalContainer.innerHTML = modalHtml;
+            document.body.appendChild(modalContainer.firstElementChild);
+            
+            // Mostrar el modal
+            const modal = new bootstrap.Modal(document.getElementById('firmaDetallesModal'));
+            modal.show();
+            
+            // Procesar y mostrar la imagen de la firma
+            try {
+                let firmaSvg = data.firma;
+                if (firmaSvg.includes('<?xml') && firmaSvg.includes('<svg')) {
+                    firmaSvg = firmaSvg.substring(firmaSvg.indexOf('<svg'));
+                }
+                
+                const imgElement = document.getElementById('modalFirmaImg');
+                imgElement.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(firmaSvg)));
+            } catch (error) {
+                console.error('Error al procesar la firma para el modal:', error);
+                document.getElementById('modalFirmaImg').alt = 'Error al cargar firma: ' + error.message;
+            }
+            
+            // Eliminar el modal del DOM cuando se cierre
+            document.getElementById('firmaDetallesModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        }
+    </script>
+    
+    <script>
+        $(document).ready(function () {
+            $('#itemsTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
+                },
+                order: [[0, 'asc']],
+                paging: false,
+                searching: false,
+                info: false
+            });
+            
+            // Iniciar carga de firma digital si hay operario
+            const idOperario = @(Model.Operario?.IdOperario ?? 0);
+            if (idOperario > 0) {
+                console.log('Iniciando carga de firma para operario ID:', idOperario);
+                cargarFirmaDirecta(idOperario);
+            } else {
+                console.log('No hay operario válido para cargar firma');
+                document.getElementById('firmaDigitalContainer').innerHTML = '<em class="text-muted small">Sin operario asociado</em>';
+            }
+        });
+    </script>
+}

@@ -454,6 +454,158 @@ public class ApiBPMService : IApiBPMService
         }
     }
 
+
+    
+    public async Task<string?> GetFirmaDigitalOperarioAsync(int idOperario)
+    {
+        try
+        {
+            // Verificar que la URL base esté configurada
+            if (_httpClient.BaseAddress == null)
+            {
+                _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
+                _logger?.LogInformation($"Configurando BaseAddress en GetFirmaDigitalOperarioAsync: {_httpClient.BaseAddress}");
+            }
+            
+            AgregarToken();
+            string url = $"FirmaPatron/operario/{idOperario}";
+            
+            _logger?.LogInformation($"Consultando firma digital para operario {idOperario} en {_httpClient.BaseAddress}{url}");
+            Console.WriteLine($"\n\n==== CONSULTANDO FIRMA DIGITAL ====\n");
+            Console.WriteLine($"URL: {_httpClient.BaseAddress}{url}");
+            Console.WriteLine($"ID Operario: {idOperario}");
+            
+            var response = await _httpClient.GetAsync(url);
+            Console.WriteLine($"Respuesta HTTP: {response.StatusCode}");
+            _logger?.LogInformation($"Respuesta HTTP para firma digital: {response.StatusCode}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                
+                // Mostrar solo los primeros 100 caracteres para diagnóstico
+                var contentPreview = content.Length > 100 ? content.Substring(0, 100) + "..." : content;
+                Console.WriteLine($"Contenido de respuesta (primeros 100 caracteres): {contentPreview}");
+                _logger?.LogInformation($"Contenido de respuesta (primeros 100 caracteres): {contentPreview}");
+                
+                try
+                {
+                    // Intentar deserializar directamente como FirmaPatron
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+                    
+                    var firmaPatron = JsonSerializer.Deserialize<FirmaPatron>(content, options);
+                    
+                    if (firmaPatron != null)
+                    {
+                        Console.WriteLine($"FirmaPatron deserializado correctamente:");
+                        Console.WriteLine($"- IdFirmaPatron: {firmaPatron.IdFirmaPatron}");
+                        Console.WriteLine($"- IdOperario: {firmaPatron.IdOperario}");
+                        Console.WriteLine($"- Firma (longitud): {(firmaPatron.Firma != null ? firmaPatron.Firma.Length : 0)} caracteres");
+                        Console.WriteLine($"- Activa: {firmaPatron.Activa}");
+                        
+                        _logger?.LogInformation($"Firma deserializada - IdFirmaPatron: {firmaPatron.IdFirmaPatron}, Longitud: {(firmaPatron.Firma != null ? firmaPatron.Firma.Length : 0)}");
+                        
+                        if (!string.IsNullOrEmpty(firmaPatron.Firma))
+                        {
+                            // Verificar si la firma parece ser un SVG válido
+                            if (firmaPatron.Firma.Contains("<svg") || firmaPatron.Firma.Contains("<?xml"))
+                            {
+                                Console.WriteLine($"Firma SVG válida encontrada, devolviendo...");
+                                _logger?.LogInformation($"Firma SVG válida encontrada para operario {idOperario}");
+                                
+                                // Asegurarse de que la firma comienza con la etiqueta SVG
+                                string firmaProcesada = firmaPatron.Firma;
+                                if (firmaProcesada.Contains("<?xml") && firmaProcesada.Contains("<svg"))
+                                {
+                                    // Extraer solo la parte SVG
+                                    firmaProcesada = firmaProcesada.Substring(firmaProcesada.IndexOf("<svg"));
+                                    _logger?.LogInformation("Procesada firma para eliminar declaración XML");
+                                }
+                                
+                                return firmaProcesada;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"La propiedad Firma no parece contener un SVG válido");
+                                _logger?.LogWarning($"La firma del operario {idOperario} no parece ser un SVG válido");
+                                return null;
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"La propiedad Firma es nula o vacía");
+                            _logger?.LogWarning($"La firma del operario {idOperario} es nula o vacía");
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"No se pudo deserializar la respuesta como FirmaPatron");
+                        _logger?.LogWarning($"No se pudo deserializar la respuesta de firma para operario {idOperario}");
+                        
+                        // Intentar analizar la respuesta como JSON genérico
+                        using (JsonDocument document = JsonDocument.Parse(content))
+                        {
+                            Console.WriteLine($"Propiedades disponibles en la respuesta:");
+                            foreach (var prop in document.RootElement.EnumerateObject())
+                            {
+                                Console.WriteLine($"- {prop.Name}: {prop.Value.ValueKind}");
+                                
+                                // Si encontramos alguna propiedad que contenga "firma", intentamos usarla
+                                if (prop.Name.ToLower().Contains("firma") && prop.Value.ValueKind == JsonValueKind.String)
+                                {
+                                    var firmaSvg = prop.Value.GetString();
+                                    if (!string.IsNullOrEmpty(firmaSvg) && (firmaSvg.Contains("<svg") || firmaSvg.Contains("<?xml")))
+                                    {
+                                        Console.WriteLine($"Encontrada firma en propiedad '{prop.Name}'");
+                                        _logger?.LogInformation($"Encontrada firma alternativa en propiedad '{prop.Name}'");
+                                        
+                                        // Procesar la firma si es necesario
+                                        if (firmaSvg.Contains("<?xml") && firmaSvg.Contains("<svg"))
+                                        {
+                                            firmaSvg = firmaSvg.Substring(firmaSvg.IndexOf("<svg"));
+                                        }
+                                        
+                                        return firmaSvg;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error al procesar respuesta: {ex.Message}");
+                    _logger?.LogError($"Error al procesar respuesta de firma: {ex.Message}");
+                }
+                
+                _logger?.LogWarning($"No se encontró firma válida para operario {idOperario}");
+                return null;
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error HTTP: {response.StatusCode}. Detalle: {errorContent}");
+                _logger?.LogError($"Error HTTP al obtener firma: {response.StatusCode}. Detalle: {errorContent}");
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Excepción: {ex.Message}");
+            Console.WriteLine($"StackTrace: {ex.StackTrace}");
+            _logger?.LogError($"Excepción al obtener firma: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            Console.WriteLine($"\n==== FIN CONSULTA FIRMA DIGITAL ====\n\n");
+        }
+    }
+
     public async Task<List<OperarioSinAuditoriaDTO>> GetOperariosSinAuditoriaAsync()
     {
         try

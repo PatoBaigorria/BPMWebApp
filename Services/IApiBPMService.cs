@@ -20,5 +20,8 @@ namespace BPMWebApp.Services
         // Nuevos métodos para el dashboard
         Task<ResumenAuditoriasDTO> GetResumenAuditoriasAsync(DateTime desde, DateTime hasta);
         Task<IndicadoresClaveDTO> GetIndicadoresClaveAsync(DateTime desde, DateTime hasta);
+        
+        // Método para obtener la firma digital del operario
+        Task<string?> GetFirmaDigitalOperarioAsync(int idOperario);
     }
 }

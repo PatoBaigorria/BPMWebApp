@@ -261,6 +261,7 @@ E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\BPMWebApp.MvcApplicationPartsAss
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\BPMWebApp.MvcApplicationPartsAssemblyInfo.cache
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\BPMWebApp.RazorAssemblyInfo.cache
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\BPMWebApp.RazorAssemblyInfo.cs
+E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\BPMWebApp.sourcelink.json
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\staticwebassets.build.json
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\staticwebassets.development.json
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\staticwebassets\msbuild.BPMWebApp.Microsoft.AspNetCore.StaticWebAssets.props
@@ -277,4 +278,3 @@ E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\refint\BPMWebApp.dll
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\BPMWebApp.pdb
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\BPMWebApp.genruntimeconfig.cache
 E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\ref\BPMWebApp.dll
-E:\ULP\Laboratorio 3\BPMWebApp\obj\Debug\net8.0\BPMWebApp.sourcelink.json

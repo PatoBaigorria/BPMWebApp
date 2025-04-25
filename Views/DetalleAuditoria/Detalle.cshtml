@@ -1,7 +1,7 @@
 @model Auditoria
 
 <div class="container-fluid">
-    <h2 class="h3 mb-4 text-gray-800">Detalle de Auditoría</h2>
+    <h2 class="h4 mb-4 text-gray-800">Detalle de Auditoría</h2>
 
     @if (ViewBag.Error != null)
     {
@@ -47,7 +47,7 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <ul class="list-group list-group-flush">
+                            <ul class="list-group list-group-flush" style="font-size:0.91rem;">
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <span><strong>ID Auditoría:</strong></span>
                                     <span>@Model.IdAuditoria</span>
@@ -66,17 +66,37 @@
                                 </li>
 
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span><strong>Firma:</strong></span>
+                                    <span><strong>Estado:</strong></span>
                                     @{
                                         var badgeClass = Model.NoConforme ? "bg-danger" : "bg-success";
                                         var estadoTexto = Model.NoConforme ? "No Conforme" : "Conforme";
                                     }
                                     <span class="badge @badgeClass">@estadoTexto</span>
                                 </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><strong>Firma digital:</strong></span>
+                                    <span>
+                                        @if (!string.IsNullOrEmpty(ViewBag.FirmaDigitalSvg))
+                                        {
+                                            <div style="max-width:120px; max-height:60px; background-color:#f8f9fa; padding:2px; border-radius:3px;">
+                                                @Html.Raw(ViewBag.FirmaDigitalSvg)
+                                            </div>
+                                        }
+                                        <div id="firma-container">
+                                            @if (string.IsNullOrEmpty(ViewBag.FirmaDigitalSvg) && Model.Operario != null && Model.Operario.IdOperario > 0)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                        onclick="cargarFirmaDirecta(@Model.Operario.IdOperario)">
+                                                    <i class="fas fa-sync-alt"></i> Cargar firma
+                                                </button>
+                                            }
+                                        </div>
+                                    </span>
+                                </li>
                             </ul>
                         </div>
                         <div class="col-md-6">
-                            <ul class="list-group list-group-flush">
+                            <ul class="list-group list-group-flush" style="font-size:0.91rem;">
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <span><strong>Operario:</strong></span>
                                     <span>@($"{Model.Operario?.Apellido}, {Model.Operario?.Nombre}")</span>
@@ -135,7 +155,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="itemsTable" width="100%" cellspacing="0">
+                        <table class="table table-bordered table-hover table-sm" id="itemsTable" style="font-size:0.92rem;">
                             <thead class="table-primary">
                                 <tr>
                                     <th>Ítems BPM</th>
@@ -147,28 +167,28 @@
                                 {
                                     @foreach (var item in Model.AuditoriaItems.OrderBy(i => i.ItemBPM?.Descripcion))
                                     {
-                                        var estadoClass = "";
+                                        var itemEstadoClass = "";
                                         var itemEstadoTexto = "";
                                         
                                         switch (item.Estado)
                                         {
                                             case EstadoEnum.OK:
-                                                estadoClass = "text-success";
+                                                itemEstadoClass = "text-success";
                                                 itemEstadoTexto = "OK";
                                                 break;
                                             case EstadoEnum.NOOK:
-                                                estadoClass = "text-danger";
+                                                itemEstadoClass = "text-danger";
                                                 itemEstadoTexto = "NO OK";
                                                 break;
                                             case EstadoEnum.NA:
-                                                estadoClass = "text-warning";
+                                                itemEstadoClass = "text-warning";
                                                 itemEstadoTexto = "N/A";
                                                 break;
                                         }
                                         
                                         <tr>
                                             <td>@item.ItemBPM?.Descripcion</td>
-                                            <td class="text-center @estadoClass" style="font-weight: 500;">@itemEstadoTexto</td>
+                                            <td class="text-center @itemEstadoClass" style="font-weight: 500;">@itemEstadoTexto</td>
                                         </tr>
                                     }
                                 }
@@ -188,20 +208,210 @@
 </div>
 
 @section Scripts {
+    <!-- Asegurarse de que jQuery esté cargado antes de DataTables -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     
     <script>
-        $(document).ready(function () {
+        // Inicializar DataTable cuando el documento esté listo
+        $(document).ready(function() {
             $('#itemsTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json"
                 },
-                order: [[0, 'asc']],
-                paging: false,
-                searching: false,
-                info: false
+                "paging": false,
+                "info": false,
+                "searching": false
             });
         });
+        
+        // Función mejorada para cargar la firma digital directamente desde la API
+        function cargarFirmaDirecta(idOperario) {
+            if (!idOperario) {
+                console.error('ID de operario no válido');
+                return;
+            }
+            
+            const firmaContainer = document.getElementById('firma-container');
+            if (!firmaContainer) {
+                console.error('Contenedor de firma no encontrado');
+                return;
+            }
+            
+            // Mostrar spinner de carga
+            firmaContainer.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>';
+            
+            // Usar una URL fija con http para evitar problemas de SSL
+            const apiUrl = 'http://localhost:5222/FirmaPatron/operario/' + idOperario;
+            console.log('URL de API para firma:', apiUrl);
+            
+            // Realizar la petición con manejo de errores simplificado
+            fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer ' + getCookie('jwt_token')
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Manejar específicamente el error 404 (No encontrado)
+                    if (response.status === 404) {
+                        throw new Error('Sin firma registrada');
+                    } else {
+                        throw new Error('Error en la respuesta: ' + response.status);
+                    }
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Datos recibidos de la API:', data);
+                
+                // Extraer la firma del objeto de respuesta
+                let firma = null;
+                
+                // Buscar la firma en las propiedades conocidas
+                if (data && data.firma && typeof data.firma === 'string') {
+                    firma = data.firma;
+                    console.log('Firma encontrada en data.firma');
+                } else if (data && data.Firma && typeof data.Firma === 'string') {
+                    firma = data.Firma;
+                    console.log('Firma encontrada en data.Firma');
+                }
+                
+                // Si no encontramos la firma, mostrar mensaje
+                if (!firma) {
+                    firmaContainer.innerHTML = '<div class="alert alert-warning">No se encontró firma en la respuesta</div>';
+                    return;
+                }
+                
+                // Diagnóstico mejorado de la firma
+                const esSvg = firma.includes('<svg');
+                const estaCompleta = firma.includes('</svg>');
+                const esTruncada = esSvg && !estaCompleta;
+                const longitudFirma = firma.length;
+                
+                // Registrar información detallada para diagnóstico
+                console.log('Diagnóstico de firma:');
+                console.log('- Longitud:', longitudFirma, 'caracteres');
+                console.log('- ¿Es SVG?', esSvg);
+                console.log('- ¿Está completa?', estaCompleta);
+                console.log('- ¿Está truncada?', esTruncada);
+                
+                if (esTruncada) {
+                    console.warn(`⚠️ Firma truncada detectada (${longitudFirma} caracteres). Posible problema en la base de datos.`);
+                }
+                
+                // Mostrar primeros y últimos caracteres para diagnóstico
+                if (longitudFirma > 50) {
+                    console.log('- Primeros 50 caracteres:', firma.substring(0, 50));
+                    console.log('- Últimos 20 caracteres:', firma.substring(firma.length - 20));
+                } else {
+                    console.log('- Firma completa:', firma);
+                }
+                
+                // Intentar arreglar el SVG si está truncado
+                let firmaProcesada = firma;
+                if (esSvg && !estaCompleta) {
+                    // Extraer solo la parte inicial del SVG y completarla
+                    const svgStart = firma.indexOf('<svg');
+                    if (svgStart >= 0) {
+                        // Extraer atributos importantes
+                        const widthMatch = firma.match(/width="([^"]+)"/i);
+                        const heightMatch = firma.match(/height="([^"]+)"/i);
+                        const viewBoxMatch = firma.match(/viewBox="([^"]+)"/i);
+                        
+                        const width = widthMatch ? widthMatch[1] : '100%';
+                        const height = heightMatch ? heightMatch[1] : '100%';
+                        const viewBox = viewBoxMatch ? viewBoxMatch[1] : `0 0 ${width} ${height}`;
+                        
+                        // Crear un SVG representativo más sofisticado con una firma simulada
+                        firmaProcesada = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${viewBox}">
+                            <rect width="100%" height="100%" fill="#f8f9fa" fill-opacity="0.1" />
+                            <path d="M10,40 C30,20 50,60 70,40 C90,20 110,60 130,40 C150,20 170,60 190,40" 
+                                  stroke="#333" stroke-width="2" fill="none" stroke-linecap="round" />
+                            <text x="50%" y="85%" font-family="Arial" font-size="8" text-anchor="middle" fill="#666">
+                                (Firma truncada - ${longitudFirma} caracteres)
+                            </text>
+                        </svg>`;
+                        console.log('Creado SVG representativo mejorado para firma truncada');
+                    } else {
+                        // Si no podemos extraer nada, agregar simplemente el cierre
+                        firmaProcesada = firma + '</svg>';
+                        console.log('Se agregó cierre </svg> a la firma');
+                    }
+                }
+                
+                console.log('Firma encontrada (longitud):', firma.length);
+                console.log('¿Es SVG?', esSvg);
+                console.log('¿Está completa?', estaCompleta);
+                console.log('¿Está truncada?', esTruncada);
+                
+                // Crear el contenedor para mostrar la firma
+                const contenedorFirma = document.createElement('div');
+                contenedorFirma.style.width = '120px';
+                contenedorFirma.style.height = '60px';
+                contenedorFirma.style.backgroundColor = '#f8f9fa';
+                contenedorFirma.style.padding = '3px';
+                contenedorFirma.style.borderRadius = '3px';
+                contenedorFirma.style.border = esTruncada ? '1px dashed #f0ad4e' : '1px solid #ddd';
+                contenedorFirma.style.display = 'flex';
+                contenedorFirma.style.alignItems = 'center';
+                contenedorFirma.style.justifyContent = 'center';
+                
+                // Agregar un tooltip si la firma está truncada
+                if (esTruncada) {
+                    contenedorFirma.title = `Firma truncada (${longitudFirma} caracteres). La firma completa no está disponible.`;
+                    contenedorFirma.style.position = 'relative';
+                }
+                
+                // Mostrar la firma o un mensaje si está truncada
+                if (esTruncada) {
+                    // Intentar mostrar la firma truncada con el SVG representativo
+                    try {
+                        // Usar el SVG representativo
+                        contenedorFirma.innerHTML = firmaProcesada;
+                        console.log('Mostrando SVG representativo para firma truncada');
+                    } catch (error) {
+                        console.error('Error al mostrar firma truncada:', error);
+                        contenedorFirma.innerHTML = '<div style="text-align:center; font-size:10px; color:#666;">Firma registrada<br>(truncada)</div>';
+                    }
+                } else if (esSvg) {
+                    // Si es un SVG válido, mostrarlo
+                    contenedorFirma.innerHTML = firma;
+                    console.log('Mostrando firma SVG completa');
+                } else {
+                    // Si no es un SVG, mostrar un mensaje
+                    contenedorFirma.innerHTML = '<div style="text-align:center; font-size:10px; color:#666;">Firma no válida</div>';
+                    console.log('La firma no es un SVG válido');
+                }
+                
+                // Limpiar el contenedor y agregar solo el contenedor de firma
+                firmaContainer.innerHTML = '';
+                firmaContainer.appendChild(contenedorFirma);
+                
+                // No mostramos información de depuración como solicitado
+            })
+            .catch(error => {
+                console.error('Error al cargar la firma:', error);
+                
+                // Personalizar el mensaje según el tipo de error
+                // Mostrar solo el botón para cargar firma
+                firmaContainer.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                            onclick="cargarFirmaDirecta(${idOperario})">
+                        <i class="fas fa-sync-alt"></i> Cargar firma
+                    </button>`;
+            });
+        }
+        
+        // Función para obtener cookies
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
     </script>
 }
