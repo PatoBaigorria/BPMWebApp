@@ -1,4 +1,7 @@
 // Services/ApiBPMService.cs
+using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using BPMWebApp.Models;
@@ -18,7 +21,7 @@ public class ApiBPMService : IApiBPMService
         _httpContextAccessor = httpContextAccessor;
         _configuration = configuration;
         _logger = logger;
-        
+
         // Asegurar que la URL base esté configurada
         if (_httpClient.BaseAddress == null)
         {
@@ -32,13 +35,13 @@ public class ApiBPMService : IApiBPMService
         try
         {
             var token = _httpContextAccessor.HttpContext?.Request.Cookies["jwt_token"];
-            
+
             // Limpiar encabezados de autenticación previos
             if (_httpClient.DefaultRequestHeaders.Contains("Authorization"))
             {
                 _httpClient.DefaultRequestHeaders.Remove("Authorization");
             }
-            
+
             if (!string.IsNullOrEmpty(token))
             {
                 _logger?.LogInformation($"Agregando token de autenticación: {token.Substring(0, Math.Min(10, token.Length))}...");
@@ -55,25 +58,25 @@ public class ApiBPMService : IApiBPMService
             _logger?.LogError($"Error al agregar token: {ex.Message}");
         }
     }
-    
+
     public async Task<List<SupervisorEstadisticaDTO>> GetEstadisticasSupervisionAsync(DateTime desde, DateTime hasta)
     {
         try
         {
             AgregarToken(); // Agregamos el token de autenticación
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetEstadisticasSupervisionAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Construir la URL completa con el endpoint correcto
             var url = $"api/Estadisticas/por-supervisor?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
-            
+
             _logger?.LogInformation($"Llamando a la API en: {_httpClient.BaseAddress}{url}");
-            
+
             var response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
@@ -100,19 +103,19 @@ public class ApiBPMService : IApiBPMService
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetAuditoriasPorFechaAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Intentar con un formato de URL diferente
             var url = $"api/Supervisores/{supervisorId}/auditorias?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
-            
+
             _logger?.LogInformation($"Llamando a la API en: {_httpClient.BaseAddress}{url}");
-            
+
             var response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
@@ -123,10 +126,10 @@ public class ApiBPMService : IApiBPMService
             }
 
             var auditorias = await response.Content.ReadFromJsonAsync<List<Auditoria>>();
-            
+
             // Ya no necesitamos filtrar por supervisor ya que la API lo hace por nosotros
-            return auditorias?.Where(a => 
-                a.Fecha >= desde && 
+            return auditorias?.Where(a =>
+                a.Fecha >= desde &&
                 a.Fecha <= hasta)
                 .ToList() ?? new List<Auditoria>();
         }
@@ -142,18 +145,18 @@ public class ApiBPMService : IApiBPMService
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetCantidadAuditoriasMesAMesAsync: {_httpClient.BaseAddress}");
             }
-            
+
             var url = $"Auditorias/cantidad-auditorias-mes-a-mes?anioInicio={anioInicio}&anioFin={anioFin}";
-            
+
             _logger?.LogInformation($"Llamando a la API en: {_httpClient.BaseAddress}{url}");
-            
+
             var response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
@@ -178,38 +181,38 @@ public class ApiBPMService : IApiBPMService
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetAuditoriaDetalleAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Primero intentamos obtener todas las auditorías y filtrar por ID
             var fechaDesde = DateTime.Now.AddYears(-1); // Buscar en el último año
             var fechaHasta = DateTime.Now;
-            
+
             _logger?.LogInformation($"Intentando obtener auditoría {auditoriaId} usando el endpoint general de auditorías");
-            
+
             // Usar el endpoint de auditorías que ya existe
             var url = $"Auditorias?desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}";
-            
+
             _logger?.LogInformation($"Llamando a la API en: {_httpClient.BaseAddress}{url}");
-            
+
             var response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger?.LogError($"Error al obtener auditorías. Status Code: {response.StatusCode}, Detalles: {errorContent}");
-                
+
                 // Intentar con el endpoint por-supervisor como alternativa
                 _logger?.LogInformation("Intentando con el endpoint por-supervisor como alternativa");
                 url = $"Auditorias/por-supervisor?desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}";
-                
+
                 response = await _httpClient.GetAsync(url);
-                
+
                 if (!response.IsSuccessStatusCode)
                 {
                     errorContent = await response.Content.ReadAsStringAsync();
@@ -219,32 +222,32 @@ public class ApiBPMService : IApiBPMService
             }
 
             var auditorias = await response.Content.ReadFromJsonAsync<List<Auditoria>>();
-            
+
             // Filtrar para obtener la auditoría específica por ID
             var auditoria = auditorias?.FirstOrDefault(a => a.IdAuditoria == auditoriaId);
-            
+
             if (auditoria == null)
             {
                 _logger?.LogWarning($"No se encontró la auditoría con ID {auditoriaId}");
                 return new Auditoria(); // Devolver una auditoría vacía
             }
-            
+
             // Si la auditoría no tiene ítems, intentar obtenerlos por separado
             if (auditoria.AuditoriaItems == null || !auditoria.AuditoriaItems.Any())
             {
                 _logger?.LogInformation($"La auditoría {auditoriaId} no tiene ítems, intentando obtenerlos por separado");
-                
+
                 try
                 {
                     // Intentar obtener los ítems de la auditoría usando el endpoint de AuditoriasItemBPM
                     var itemsUrl = $"AuditoriasItemBPM";
                     var itemsResponse = await _httpClient.GetAsync(itemsUrl);
-                    
+
                     if (itemsResponse.IsSuccessStatusCode)
                     {
                         var allItems = await itemsResponse.Content.ReadFromJsonAsync<List<AuditoriaItemBPM>>();
                         var auditoriaItems = allItems?.Where(i => i.IdAuditoria == auditoriaId).ToList();
-                        
+
                         if (auditoriaItems != null && auditoriaItems.Any())
                         {
                             _logger?.LogInformation($"Se encontraron {auditoriaItems.Count} ítems para la auditoría {auditoriaId}");
@@ -258,7 +261,7 @@ public class ApiBPMService : IApiBPMService
                     // Continuar incluso si no se pueden obtener los ítems
                 }
             }
-            
+
             _logger?.LogInformation($"Se obtuvo la auditoría {auditoriaId} con {auditoria.AuditoriaItems?.Count ?? 0} ítems");
             return auditoria;
         }
@@ -274,19 +277,19 @@ public class ApiBPMService : IApiBPMService
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetTodasAuditoriasAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Usar el endpoint de auditorías que ya existe
             var url = $"Auditorias?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
-            
+
             _logger?.LogInformation($"Llamando a la API en: {_httpClient.BaseAddress}{url}");
-            
+
             var response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
@@ -297,9 +300,9 @@ public class ApiBPMService : IApiBPMService
             }
 
             var auditorias = await response.Content.ReadFromJsonAsync<List<Auditoria>>();
-            
-            return auditorias?.Where(a => 
-                a.Fecha >= desde && 
+
+            return auditorias?.Where(a =>
+                a.Fecha >= desde &&
                 a.Fecha <= hasta)
                 .ToList() ?? new List<Auditoria>();
         }
@@ -309,20 +312,20 @@ public class ApiBPMService : IApiBPMService
             throw;
         }
     }
-    
+
     public async Task<List<Auditoria>> GetAuditoriasPorSupervisorAsync(DateOnly desde, DateOnly hasta, int? supervisorId = null)
     {
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetAuditoriasPorSupervisorAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Intentamos obtener todas las auditorías directamente usando la ruta correcta
             try
             {
@@ -332,9 +335,9 @@ public class ApiBPMService : IApiBPMService
                 {
                     auditoriasUrl += $"&supervisorId={supervisorId.Value}";
                 }
-                
+
                 _logger?.LogInformation($"Intentando obtener todas las auditorías: {_httpClient.BaseAddress}{auditoriasUrl}");
-                
+
                 var auditoriasResponse = await _httpClient.GetAsync(auditoriasUrl);
                 if (auditoriasResponse.IsSuccessStatusCode)
                 {
@@ -360,7 +363,7 @@ public class ApiBPMService : IApiBPMService
             {
                 _logger?.LogWarning($"Error al intentar obtener todas las auditorías: {ex.Message}");
             }
-            
+
             // Si no funcionó el endpoint principal, intentamos con el endpoint por-supervisor
             try
             {
@@ -369,9 +372,9 @@ public class ApiBPMService : IApiBPMService
                 {
                     porSupervisorUrl += $"&supervisorId={supervisorId.Value}";
                 }
-                
+
                 _logger?.LogInformation($"Intentando obtener auditorías por supervisor: {_httpClient.BaseAddress}{porSupervisorUrl}");
-                
+
                 var porSupervisorResponse = await _httpClient.GetAsync(porSupervisorUrl);
                 if (porSupervisorResponse.IsSuccessStatusCode)
                 {
@@ -397,7 +400,7 @@ public class ApiBPMService : IApiBPMService
             {
                 _logger?.LogWarning($"Error al intentar obtener auditorías por supervisor: {ex.Message}");
             }
-            
+
             // Si llegamos aquí, no pudimos obtener auditorías de ninguna manera
             _logger?.LogWarning("No se pudieron obtener auditorías de ninguna manera");
             return new List<Auditoria>();
@@ -408,42 +411,42 @@ public class ApiBPMService : IApiBPMService
             throw;
         }
     }
-    
+
     public async Task<bool> GuardarComentarioAuditoriaAsync(int auditoriaId, string comentario)
     {
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GuardarComentarioAuditoriaAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Crear el objeto para enviar en la solicitud
-            var comentarioData = new 
+            var comentarioData = new
             {
                 IdAuditoria = auditoriaId,
                 Comentario = comentario
             };
-            
+
             // Construir la URL para actualizar el comentario
             var url = $"Auditorias/{auditoriaId}/comentario";
-            
+
             _logger?.LogInformation($"Enviando comentario para la auditoría {auditoriaId}: {_httpClient.BaseAddress}{url}");
-            
+
             // Enviar la solicitud PUT para actualizar el comentario
             var response = await _httpClient.PutAsJsonAsync(url, comentarioData);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger?.LogError($"Error al guardar el comentario. Status Code: {response.StatusCode}, Detalles: {errorContent}");
                 return false;
             }
-            
+
             _logger?.LogInformation($"Comentario guardado exitosamente para la auditoría {auditoriaId}");
             return true;
         }
@@ -455,7 +458,7 @@ public class ApiBPMService : IApiBPMService
     }
 
 
-    
+
     public async Task<string?> GetFirmaDigitalOperarioAsync(int idOperario)
     {
         try
@@ -466,28 +469,28 @@ public class ApiBPMService : IApiBPMService
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetFirmaDigitalOperarioAsync: {_httpClient.BaseAddress}");
             }
-            
+
             AgregarToken();
             string url = $"FirmaPatron/operario/{idOperario}";
-            
+
             _logger?.LogInformation($"Consultando firma digital para operario {idOperario} en {_httpClient.BaseAddress}{url}");
             Console.WriteLine($"\n\n==== CONSULTANDO FIRMA DIGITAL ====\n");
             Console.WriteLine($"URL: {_httpClient.BaseAddress}{url}");
             Console.WriteLine($"ID Operario: {idOperario}");
-            
+
             var response = await _httpClient.GetAsync(url);
             Console.WriteLine($"Respuesta HTTP: {response.StatusCode}");
             _logger?.LogInformation($"Respuesta HTTP para firma digital: {response.StatusCode}");
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                
+
                 // Mostrar solo los primeros 100 caracteres para diagnóstico
                 var contentPreview = content.Length > 100 ? content.Substring(0, 100) + "..." : content;
                 Console.WriteLine($"Contenido de respuesta (primeros 100 caracteres): {contentPreview}");
                 _logger?.LogInformation($"Contenido de respuesta (primeros 100 caracteres): {contentPreview}");
-                
+
                 try
                 {
                     // Intentar deserializar directamente como FirmaPatron
@@ -495,9 +498,9 @@ public class ApiBPMService : IApiBPMService
                     {
                         PropertyNameCaseInsensitive = true
                     };
-                    
+
                     var firmaPatron = JsonSerializer.Deserialize<FirmaPatron>(content, options);
-                    
+
                     if (firmaPatron != null)
                     {
                         Console.WriteLine($"FirmaPatron deserializado correctamente:");
@@ -505,9 +508,9 @@ public class ApiBPMService : IApiBPMService
                         Console.WriteLine($"- IdOperario: {firmaPatron.IdOperario}");
                         Console.WriteLine($"- Firma (longitud): {(firmaPatron.Firma != null ? firmaPatron.Firma.Length : 0)} caracteres");
                         Console.WriteLine($"- Activa: {firmaPatron.Activa}");
-                        
+
                         _logger?.LogInformation($"Firma deserializada - IdFirmaPatron: {firmaPatron.IdFirmaPatron}, Longitud: {(firmaPatron.Firma != null ? firmaPatron.Firma.Length : 0)}");
-                        
+
                         if (!string.IsNullOrEmpty(firmaPatron.Firma))
                         {
                             // Verificar si la firma parece ser un SVG válido
@@ -515,7 +518,7 @@ public class ApiBPMService : IApiBPMService
                             {
                                 Console.WriteLine($"Firma SVG válida encontrada, devolviendo...");
                                 _logger?.LogInformation($"Firma SVG válida encontrada para operario {idOperario}");
-                                
+
                                 // Asegurarse de que la firma comienza con la etiqueta SVG
                                 string firmaProcesada = firmaPatron.Firma;
                                 if (firmaProcesada.Contains("<?xml") && firmaProcesada.Contains("<svg"))
@@ -524,7 +527,7 @@ public class ApiBPMService : IApiBPMService
                                     firmaProcesada = firmaProcesada.Substring(firmaProcesada.IndexOf("<svg"));
                                     _logger?.LogInformation("Procesada firma para eliminar declaración XML");
                                 }
-                                
+
                                 return firmaProcesada;
                             }
                             else
@@ -545,7 +548,7 @@ public class ApiBPMService : IApiBPMService
                     {
                         Console.WriteLine($"No se pudo deserializar la respuesta como FirmaPatron");
                         _logger?.LogWarning($"No se pudo deserializar la respuesta de firma para operario {idOperario}");
-                        
+
                         // Intentar analizar la respuesta como JSON genérico
                         using (JsonDocument document = JsonDocument.Parse(content))
                         {
@@ -553,7 +556,7 @@ public class ApiBPMService : IApiBPMService
                             foreach (var prop in document.RootElement.EnumerateObject())
                             {
                                 Console.WriteLine($"- {prop.Name}: {prop.Value.ValueKind}");
-                                
+
                                 // Si encontramos alguna propiedad que contenga "firma", intentamos usarla
                                 if (prop.Name.ToLower().Contains("firma") && prop.Value.ValueKind == JsonValueKind.String)
                                 {
@@ -562,13 +565,13 @@ public class ApiBPMService : IApiBPMService
                                     {
                                         Console.WriteLine($"Encontrada firma en propiedad '{prop.Name}'");
                                         _logger?.LogInformation($"Encontrada firma alternativa en propiedad '{prop.Name}'");
-                                        
+
                                         // Procesar la firma si es necesario
                                         if (firmaSvg.Contains("<?xml") && firmaSvg.Contains("<svg"))
                                         {
                                             firmaSvg = firmaSvg.Substring(firmaSvg.IndexOf("<svg"));
                                         }
-                                        
+
                                         return firmaSvg;
                                     }
                                 }
@@ -581,7 +584,7 @@ public class ApiBPMService : IApiBPMService
                     Console.WriteLine($"Error al procesar respuesta: {ex.Message}");
                     _logger?.LogError($"Error al procesar respuesta de firma: {ex.Message}");
                 }
-                
+
                 _logger?.LogWarning($"No se encontró firma válida para operario {idOperario}");
                 return null;
             }
@@ -611,19 +614,19 @@ public class ApiBPMService : IApiBPMService
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetOperariosSinAuditoriaAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Construir la URL para obtener operarios sin auditoría
             var url = $"Auditorias/auditorias-operario";
-            
+
             _logger?.LogInformation($"Llamando a la API en: {_httpClient.BaseAddress}{url}");
-            
+
             var response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
@@ -648,38 +651,38 @@ public class ApiBPMService : IApiBPMService
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetOperariosAuditadosResumenAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Intentar primero sin el prefijo api/
             var baseParams = $"?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
             if (legajo.HasValue)
             {
                 baseParams += $"&legajo={legajo.Value}";
             }
-            
+
             // Intentar con ambas rutas
-            var urls = new[] 
+            var urls = new[]
             {
                 $"Auditorias/resumen-por-operario{baseParams}",
                 $"api/Auditorias/resumen-por-operario{baseParams}"
             };
-            
+
             HttpResponseMessage response = null;
             string currentUrl = "";
-            
+
             foreach (var url in urls)
             {
                 currentUrl = url;
                 _logger?.LogInformation($"Intentando URL: {_httpClient.BaseAddress}{url}");
-                
+
                 response = await _httpClient.GetAsync(url);
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     _logger?.LogInformation($"URL exitosa: {_httpClient.BaseAddress}{url}");
@@ -707,22 +710,22 @@ public class ApiBPMService : IApiBPMService
             throw;
         }
     }
-    
+
     public async Task<List<object>> GetItemsNoOkPorOperarioAsync(int legajo)
     {
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetItemsNoOkPorOperarioAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Usar el nombre correcto del controlador: AuditoriasItemBPM (con 's')
-            var urls = new[] 
+            var urls = new[]
             {
                 // Rutas con el controlador correcto
                 $"api/AuditoriasItemBPM/estado-nook-por-operario?legajo={legajo}",
@@ -738,17 +741,17 @@ public class ApiBPMService : IApiBPMService
                 $"api/AuditoriaItemBPMController/estado-nook-por-operario?legajo={legajo}",
                 $"AuditoriaItemBPMController/estado-nook-por-operario?legajo={legajo}"
             };
-            
+
             _logger?.LogInformation($"Intentando obtener items NoOk para el operario con legajo {legajo}");
-            
+
             HttpResponseMessage response = null;
-            
+
             foreach (var url in urls)
             {
                 _logger?.LogInformation($"Intentando URL: {_httpClient.BaseAddress}{url}");
-                
+
                 response = await _httpClient.GetAsync(url);
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     _logger?.LogInformation($"URL exitosa: {_httpClient.BaseAddress}{url}");
@@ -776,22 +779,22 @@ public class ApiBPMService : IApiBPMService
             throw;
         }
     }
-    
+
     public async Task<Operario> GetOperarioPorLegajoAsync(int legajo)
     {
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetOperarioPorLegajoAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Intentar con múltiples variantes de la ruta
-            var urls = new[] 
+            var urls = new[]
             {
                 // Rutas más probables
                 $"api/Operarios/{legajo}",
@@ -811,17 +814,17 @@ public class ApiBPMService : IApiBPMService
                 $"api/OperarioController/{legajo}",
                 $"OperarioController/{legajo}"
             };
-            
+
             _logger?.LogInformation($"Intentando obtener datos del operario con legajo {legajo}");
-            
+
             HttpResponseMessage response = null;
-            
+
             foreach (var url in urls)
             {
                 _logger?.LogInformation($"Intentando URL: {_httpClient.BaseAddress}{url}");
-                
+
                 response = await _httpClient.GetAsync(url);
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     _logger?.LogInformation($"URL exitosa: {_httpClient.BaseAddress}{url}");
@@ -841,7 +844,7 @@ public class ApiBPMService : IApiBPMService
                     _logger?.LogWarning($"No se encontró el operario con legajo {legajo}");
                     return null;
                 }
-                
+
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger?.LogError($"Error al obtener operario por legajo. Status Code: {response.StatusCode}, Detalles: {errorContent}");
                 throw new HttpRequestException($"Error al obtener operario por legajo. Status Code: {response.StatusCode}, Detalles: {errorContent}");
@@ -856,20 +859,20 @@ public class ApiBPMService : IApiBPMService
             throw;
         }
     }
-    
+
     public async Task<ResumenAuditoriasDTO> GetResumenAuditoriasAsync(DateTime desde, DateTime hasta)
     {
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetResumenAuditoriasAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Intentar diferentes rutas para obtener el resumen de auditorías
             // Priorizar la ruta correcta del DashboardController que vimos en la API
             var posiblesRutas = new List<string>
@@ -884,27 +887,27 @@ public class ApiBPMService : IApiBPMService
                 $"api/auditorias/resumen?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}",
                 $"api/estadisticas/resumen?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}"
             };
-            
+
             _logger?.LogInformation($"Intentando obtener resumen de auditorías para el período {desde:yyyy-MM-dd} a {hasta:yyyy-MM-dd}");
-            
+
             foreach (var ruta in posiblesRutas)
             {
                 try
                 {
                     _logger?.LogInformation($"Intentando URL: {_httpClient.BaseAddress}{ruta}");
                     var response = await _httpClient.GetAsync(ruta);
-                    
+
                     if (response.IsSuccessStatusCode)
                     {
                         _logger?.LogInformation($"URL exitosa: {_httpClient.BaseAddress}{ruta}");
                         var content = await response.Content.ReadAsStringAsync();
                         _logger?.LogInformation($"Contenido recibido: {content}");
-                        
+
                         var resumen = JsonSerializer.Deserialize<ResumenAuditoriasDTO>(content, new JsonSerializerOptions
                         {
                             PropertyNameCaseInsensitive = true
                         });
-                        
+
                         _logger?.LogInformation($"Resumen de auditorías obtenido correctamente: {resumen.AuditoriasTotal} auditorías, {resumen.PorcentajeConformidad}% conformidad");
                         return resumen;
                     }
@@ -920,7 +923,7 @@ public class ApiBPMService : IApiBPMService
                     // Continuar con la siguiente ruta
                 }
             }
-            
+
             // Si no se pudo obtener desde la API, generar datos aleatorios
             _logger?.LogWarning("No se pudo obtener el resumen de auditorías desde ninguna ruta, generando datos aleatorios");
             var random = new Random();
@@ -944,20 +947,20 @@ public class ApiBPMService : IApiBPMService
             };
         }
     }
-    
+
     public async Task<IndicadoresClaveDTO> GetIndicadoresClaveAsync(DateTime desde, DateTime hasta)
     {
         try
         {
             AgregarToken();
-            
+
             // Verificar que la URL base esté configurada
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
                 _logger?.LogInformation($"Configurando BaseAddress en GetIndicadoresClaveAsync: {_httpClient.BaseAddress}");
             }
-            
+
             // Intentar diferentes rutas para obtener los indicadores clave
             // Priorizar la ruta correcta del DashboardController que vimos en la API
             var posiblesRutas = new List<string>
@@ -972,27 +975,27 @@ public class ApiBPMService : IApiBPMService
                 $"api/auditorias/indicadores?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}",
                 $"api/estadisticas/indicadores?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}"
             };
-            
+
             _logger?.LogInformation($"Intentando obtener indicadores clave para el período {desde:yyyy-MM-dd} a {hasta:yyyy-MM-dd}");
-            
+
             foreach (var ruta in posiblesRutas)
             {
                 try
                 {
                     _logger?.LogInformation($"Intentando URL: {_httpClient.BaseAddress}{ruta}");
                     var response = await _httpClient.GetAsync(ruta);
-                    
+
                     if (response.IsSuccessStatusCode)
                     {
                         _logger?.LogInformation($"URL exitosa: {_httpClient.BaseAddress}{ruta}");
                         var content = await response.Content.ReadAsStringAsync();
                         _logger?.LogInformation($"Contenido recibido: {content}");
-                        
+
                         var indicadores = JsonSerializer.Deserialize<IndicadoresClaveDTO>(content, new JsonSerializerOptions
                         {
                             PropertyNameCaseInsensitive = true
                         });
-                        
+
                         _logger?.LogInformation($"Indicadores clave obtenidos correctamente: {indicadores.PorcentajeAuditoriasCompletadas}% completadas, {indicadores.PorcentajeOperariosAuditados}% operarios auditados");
                         return indicadores;
                     }
@@ -1003,7 +1006,7 @@ public class ApiBPMService : IApiBPMService
                     // Continuar con la siguiente ruta
                 }
             }
-            
+
             // Si no se pudo obtener desde la API, generar datos aleatorios
             _logger?.LogWarning("No se pudo obtener los indicadores clave desde ninguna ruta, generando datos aleatorios");
             var random = new Random();
@@ -1029,4 +1032,74 @@ public class ApiBPMService : IApiBPMService
             };
         }
     }
+
+
+    // Añade este método al nivel de clase, no dentro de otro método
+    Task<FileExportDTO> IApiBPMService.GetExportarAuditoriaExcelAsync(int id)
+    {
+        try
+        {
+            AgregarToken();
+
+            // Verificar que la URL base esté configurada
+            if (_httpClient.BaseAddress == null)
+            {
+                _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
+                _logger?.LogInformation($"Configurando BaseAddress en GetExportarAuditoriaExcelAsync: {_httpClient.BaseAddress}");
+            }
+
+            // Probar con múltiples variantes de la URL
+            var urls = new[]
+            {
+            // Variantes con Auditoria (singular)
+            $"Auditoria/ExportarAuditoriaExcel/{id}",
+            $"api/Auditoria/ExportarAuditoriaExcel/{id}",
+            
+            // Variantes con Auditorias (plural)
+            $"Auditorias/ExportarAuditoriaExcel/{id}",
+            $"api/Auditorias/ExportarAuditoriaExcel/{id}",
+            
+            // Variantes con Controller en el nombre
+            $"AuditoriaController/ExportarAuditoriaExcel/{id}",
+            $"api/AuditoriaController/ExportarAuditoriaExcel/{id}"
+        };
+
+            HttpResponseMessage response = null;
+            string currentUrl = "";
+
+            foreach (var url in urls)
+            {
+                currentUrl = url;
+                _logger?.LogInformation($"Intentando URL: {_httpClient.BaseAddress}{url}");
+
+                response = _httpClient.GetAsync(url).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger?.LogInformation($"URL exitosa: {_httpClient.BaseAddress}{url}");
+                    var content = response.Content.ReadAsByteArrayAsync().Result;
+                    return Task.FromResult(new FileExportDTO
+                    {
+                        FileContent = content,
+                        FileName = $"Auditoria_{id}_{DateTime.Now:yyyy-MM-dd}.csv",
+                        ContentType = "text/csv; charset=utf-8"
+                    });
+                }
+                else
+                {
+                    var errorContent = response.Content.ReadAsStringAsync().Result;
+                    _logger?.LogWarning($"URL fallida: {_httpClient.BaseAddress}{url} - Status: {response.StatusCode}, Detalles: {errorContent}");
+                }
+            }
+
+            _logger?.LogError($"Todas las URLs fallaron para obtener exportación de auditoría {id}");
+            return Task.FromResult<FileExportDTO>(null);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, $"Error al obtener exportación de auditoría {id}");
+            return Task.FromResult<FileExportDTO>(null);
+        }
+    }
+
 }

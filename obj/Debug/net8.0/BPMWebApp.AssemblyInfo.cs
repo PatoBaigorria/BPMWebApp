@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BPMWebApp")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0080cae091aa05ff4a6829f09e20277c2b4fc433")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+15352e3224b67dd2e6359802b55208cb4ec24056")]
 [assembly: System.Reflection.AssemblyProductAttribute("BPMWebApp")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BPMWebApp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

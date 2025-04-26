@@ -16,12 +16,15 @@ namespace BPMWebApp.Services
         Task<List<OperarioAuditoriaResumenDTO>> GetOperariosAuditadosResumenAsync(DateTime desde, DateTime hasta, int? legajo = null);
         Task<List<object>> GetItemsNoOkPorOperarioAsync(int legajo);
         Task<Operario> GetOperarioPorLegajoAsync(int legajo);
-        
+
         // Nuevos métodos para el dashboard
         Task<ResumenAuditoriasDTO> GetResumenAuditoriasAsync(DateTime desde, DateTime hasta);
         Task<IndicadoresClaveDTO> GetIndicadoresClaveAsync(DateTime desde, DateTime hasta);
-        
+
         // Método para obtener la firma digital del operario
         Task<string?> GetFirmaDigitalOperarioAsync(int idOperario);
+
+        // Método para exportar auditoría a Excel
+        Task<FileExportDTO> GetExportarAuditoriaExcelAsync(int id);
     }
 }
