@@ -49,189 +49,36 @@ namespace BPMWebApp.Controllers
                     ViewBag.FiltrosAplicados = false;
                 }
 
-                // Intentar obtener auditorías usando el nuevo endpoint
+                // Obtener auditorías usando el endpoint principal
                 List<Auditoria> todasLasAuditorias = new List<Auditoria>();
                 bool datosRealesObtenidos = false;
 
                 try
                 {
-                    _logger.LogInformation("Intentando obtener auditorías usando el nuevo endpoint por-supervisor");
+                    _logger.LogInformation("Obteniendo auditorías del período seleccionado");
                     todasLasAuditorias = await _apiService.GetAuditoriasPorSupervisorAsync(
                         DateOnly.FromDateTime(fechaDesde),
                         DateOnly.FromDateTime(fechaHasta));
 
                     if (todasLasAuditorias != null && todasLasAuditorias.Any())
                     {
-                        _logger.LogInformation($"Se obtuvieron {todasLasAuditorias.Count} auditorías del nuevo endpoint");
+                        _logger.LogInformation($"Se obtuvieron {todasLasAuditorias.Count} auditorías");
                         datosRealesObtenidos = true;
                     }
                     else
                     {
-                        _logger.LogWarning("No se encontraron auditorías en el nuevo endpoint");
+                        _logger.LogWarning("No se encontraron auditorías para el período seleccionado");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning($"Error al obtener auditorías del nuevo endpoint: {ex.Message}");
+                    _logger.LogError($"Error al obtener auditorías: {ex.Message}");
                 }
 
-                // Si no se pudieron obtener datos del nuevo endpoint, intentar con el método anterior
+                // Si no se pudieron obtener datos reales, mostrar mensaje informativo
                 if (!datosRealesObtenidos)
                 {
-                    _logger.LogInformation("Intentando obtener auditorías usando el método anterior");
-
-                    // Obtener estadísticas de supervisores
-                    var estadisticas = await _apiService.GetEstadisticasSupervisionAsync(fechaDesde, fechaHasta);
-                    _logger.LogInformation($"Se obtuvieron estadísticas de {estadisticas.Count} supervisores");
-
-                    // Intentar obtener auditorías reales para cada supervisor
-                    foreach (var supervisorEstadistica in estadisticas)
-                    {
-                        if (supervisorEstadistica.Supervisor != null && supervisorEstadistica.TotalAudits > 0)
-                        {
-                            try
-                            {
-                                _logger.LogInformation($"Intentando obtener auditorías del supervisor {supervisorEstadistica.Supervisor.IdSupervisor}");
-                                var auditoriasSupervisor = await _apiService.GetAuditoriasPorFechaAsync(
-                                    supervisorEstadistica.Supervisor.IdSupervisor,
-                                    DateOnly.FromDateTime(fechaDesde),
-                                    DateOnly.FromDateTime(fechaHasta));
-
-                                if (auditoriasSupervisor != null && auditoriasSupervisor.Any())
-                                {
-                                    _logger.LogInformation($"Se obtuvieron {auditoriasSupervisor.Count} auditorías para el supervisor {supervisorEstadistica.Supervisor.IdSupervisor}");
-                                    todasLasAuditorias.AddRange(auditoriasSupervisor);
-                                    datosRealesObtenidos = true;
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning($"Error al obtener auditorías del supervisor {supervisorEstadistica.Supervisor.IdSupervisor}: {ex.Message}");
-                            }
-                        }
-                    }
-                }
-
-                // Si no se pudieron obtener datos reales, generar datos simulados
-                if (!datosRealesObtenidos)
-                {
-                    _logger.LogWarning("No se pudieron obtener datos reales de auditorías. Generando datos simulados basados en estadísticas.");
-
-                    // Obtener estadísticas de supervisores si no se obtuvieron antes
-                    var estadisticas = await _apiService.GetEstadisticasSupervisionAsync(fechaDesde, fechaHasta);
-
-                    // Crear datos de ejemplo basados en las estadísticas de supervisores
-                    Random random = new Random();
-                    int auditoriaId = 1;
-
-                    foreach (var supervisorEstadistica in estadisticas)
-                    {
-                        if (supervisorEstadistica.Supervisor != null)
-                        {
-                            // Crear auditorías simuladas para este supervisor basadas en sus estadísticas reales
-                            int cantidadAuditorias = supervisorEstadistica.TotalAudits;
-
-                            for (int i = 0; i < cantidadAuditorias; i++)
-                            {
-                                // Crear una fecha aleatoria entre fechaDesde y fechaHasta
-                                int range = (fechaHasta - fechaDesde).Days;
-                                var fechaAuditoria = fechaDesde.AddDays(random.Next(range));
-
-                                // Crear un operario simulado
-                                var operarioSimulado = new Operario
-                                {
-                                    IdOperario = random.Next(1, 100),
-                                    Nombre = "Operario" + random.Next(1, 10),
-                                    Apellido = "Apellido" + random.Next(1, 10),
-                                    Legajo = random.Next(10000, 99999)
-                                };
-
-                                // Determinar si la auditoría es conforme o no conforme basado en las estadísticas reales
-                                bool esNoConforme = false;
-                                if (supervisorEstadistica.PositiveAudits + supervisorEstadistica.NegativeAudits > 0)
-                                {
-                                    double probabilidadNoConforme = (double)supervisorEstadistica.NegativeAudits /
-                                        (supervisorEstadistica.PositiveAudits + supervisorEstadistica.NegativeAudits);
-                                    esNoConforme = random.NextDouble() < probabilidadNoConforme;
-                                }
-
-                                // Crear una auditoría simulada con datos realistas
-                                var auditoria = new Auditoria
-                                {
-                                    IdAuditoria = auditoriaId++,
-                                    Fecha = DateOnly.FromDateTime(fechaAuditoria),
-                                    Supervisor = supervisorEstadistica.Supervisor,
-                                    Operario = operarioSimulado,
-                                    NoConforme = esNoConforme,
-                                    Actividad = new Actividad { Descripcion = "Actividad " + random.Next(1, 5) },
-                                    Linea = new Linea { Descripcion = "Línea " + random.Next(1, 3) },
-                                    AuditoriaItems = new List<AuditoriaItemBPM>()
-                                };
-
-                                // Agregar ítems simulados a la auditoría
-                                int cantidadItemsOK = random.Next(2, 6);
-                                int cantidadItemsNOOK = esNoConforme ? random.Next(1, 4) : 0;
-                                int cantidadItemsNA = random.Next(0, 3);
-
-                                int itemId = 1;
-
-                                // Agregar ítems OK
-                                for (int j = 0; j < cantidadItemsOK; j++)
-                                {
-                                    auditoria.AuditoriaItems.Add(new AuditoriaItemBPM
-                                    {
-                                        IdAuditoriaItemBPM = itemId++,
-                                        IdAuditoria = auditoria.IdAuditoria,
-                                        IdItemBPM = random.Next(1, 100),
-                                        Estado = EstadoEnum.OK,
-                                        ItemBPM = new ItemBPM
-                                        {
-                                            IdItem = random.Next(1, 100),
-                                            Descripcion = "Item Correcto " + (j + 1)
-                                        }
-                                    });
-                                }
-
-                                // Agregar ítems NOOK
-                                for (int j = 0; j < cantidadItemsNOOK; j++)
-                                {
-                                    auditoria.AuditoriaItems.Add(new AuditoriaItemBPM
-                                    {
-                                        IdAuditoriaItemBPM = itemId++,
-                                        IdAuditoria = auditoria.IdAuditoria,
-                                        IdItemBPM = random.Next(1, 100),
-                                        Estado = EstadoEnum.NOOK,
-                                        ItemBPM = new ItemBPM
-                                        {
-                                            IdItem = random.Next(1, 100),
-                                            Descripcion = "Item Incorrecto " + (j + 1)
-                                        }
-                                    });
-                                }
-
-                                // Agregar ítems NA
-                                for (int j = 0; j < cantidadItemsNA; j++)
-                                {
-                                    auditoria.AuditoriaItems.Add(new AuditoriaItemBPM
-                                    {
-                                        IdAuditoriaItemBPM = itemId++,
-                                        IdAuditoria = auditoria.IdAuditoria,
-                                        IdItemBPM = random.Next(1, 100),
-                                        Estado = EstadoEnum.NA,
-                                        ItemBPM = new ItemBPM
-                                        {
-                                            IdItem = random.Next(1, 100),
-                                            Descripcion = "Item No Aplicable " + (j + 1)
-                                        }
-                                    });
-                                }
-
-                                todasLasAuditorias.Add(auditoria);
-                            }
-                        }
-                    }
-
-                    _logger.LogInformation($"Se generaron {todasLasAuditorias.Count} auditorías simuladas");
+                    _logger.LogWarning("No se pudieron obtener datos de auditorías para el período seleccionado.");
                 }
 
                 // Aplicar filtros si es necesario
