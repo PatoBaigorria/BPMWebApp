@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
+using System.Net.Http.Headers;
 
 namespace BPMWebApp.Controllers
 {
@@ -65,6 +66,77 @@ namespace BPMWebApp.Controllers
                 // 3. Obtener el token de la respuesta
                 var token = await response.Content.ReadAsStringAsync();
                 _logger.LogInformation("Token recibido correctamente");
+                
+                // Extraer el nombre del supervisor del token JWT
+                string nombreSupervisor = "Supervisor";
+                try
+                {
+                    // Dividir el token en sus partes (header.payload.signature)
+                    var tokenParts = token.Split('.');
+                    if (tokenParts.Length >= 2)
+                    {
+                        // Decodificar la parte del payload (segunda parte)
+                        var payloadBase64 = tokenParts[1];
+                        // Asegurarse de que la longitud del string sea múltiplo de 4
+                        while (payloadBase64.Length % 4 != 0)
+                        {
+                            payloadBase64 += "=";
+                        }
+                        // Reemplazar caracteres especiales de Base64Url a Base64 estándar
+                        payloadBase64 = payloadBase64.Replace('-', '+').Replace('_', '/');
+                        
+                        // Decodificar el payload
+                        var payloadBytes = Convert.FromBase64String(payloadBase64);
+                        var payloadJson = Encoding.UTF8.GetString(payloadBytes);
+                        
+                        // Extraer información del payload usando JsonDocument
+                        using (JsonDocument document = JsonDocument.Parse(payloadJson))
+                        {
+                            var root = document.RootElement;
+                            
+                            // Buscar la propiedad FullName que contiene el nombre completo del supervisor
+                            if (root.TryGetProperty("FullName", out var fullNameElement))
+                            {
+                                nombreSupervisor = fullNameElement.GetString() ?? "Supervisor";
+                            }
+                            // Si no encuentra FullName, buscar otras propiedades comunes
+                            else if (root.TryGetProperty("name", out var nameElement) || 
+                                root.TryGetProperty("nombre", out nameElement) || 
+                                root.TryGetProperty("nombreCompleto", out nameElement) || 
+                                root.TryGetProperty("full_name", out nameElement))
+                            {
+                                nombreSupervisor = nameElement.GetString() ?? "Supervisor";
+                            }
+                            else
+                            {
+                                // Intentar buscar nombre y apellido por separado
+                                string nombre = "";
+                                string apellido = "";
+                                
+                                if (root.TryGetProperty("given_name", out var givenNameElement) || 
+                                    root.TryGetProperty("nombre", out givenNameElement))
+                                {
+                                    nombre = givenNameElement.GetString() ?? "";
+                                }
+                                
+                                if (root.TryGetProperty("family_name", out var familyNameElement) || 
+                                    root.TryGetProperty("apellido", out familyNameElement))
+                                {
+                                    apellido = familyNameElement.GetString() ?? "";
+                                }
+                                
+                                if (!string.IsNullOrEmpty(nombre) || !string.IsNullOrEmpty(apellido))
+                                {
+                                    nombreSupervisor = $"{nombre} {apellido}".Trim();
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // En caso de error, usar el valor predeterminado "Supervisor"
+                }
 
                 // 4. Guardar el token en una cookie segura
                 Response.Cookies.Append(
@@ -79,13 +151,16 @@ namespace BPMWebApp.Controllers
                             Convert.ToDouble(_config["Jwt:ExpireMinutes"] ?? "360"))
                     });
 
-                // 5. Crear una identidad para la autenticación por cookies
+                // 5. Crear una lista de claims para la autenticación
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, model.Legajo.ToString()),
                     new Claim("Legajo", model.Legajo.ToString()),
-                    new Claim(ClaimTypes.Role, "Supervisor")
+                    new Claim(ClaimTypes.Role, "Supervisor"),
+                    new Claim("NombreCompleto", nombreSupervisor)
                 };
+                
+                _logger.LogInformation($"Claim NombreCompleto agregado: {nombreSupervisor}");
 
                 var claimsIdentity = new ClaimsIdentity(
                     claims, CookieAuthenticationDefaults.AuthenticationScheme);
