@@ -125,6 +125,22 @@ namespace BPMWebApp.Controllers
             _logger.LogInformation("Redirigiendo a la página de inicio");
             return RedirectToAction("Index", "Home");
         }
+
+        [HttpPost]
+        public async Task<IActionResult> Logout()
+        {
+            _logger.LogInformation("Usuario cerrando sesión");
+            
+            // Eliminar la cookie del token JWT
+            Response.Cookies.Delete(_config["Jwt:CookieName"] ?? "jwt_token");
+            
+            // Cerrar la sesión de autenticación por cookies
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            
+            _logger.LogInformation("Sesión cerrada correctamente");
+            
+            // Redirigir al login
+            return RedirectToAction(nameof(Login));
+        }
     }
-        
 }

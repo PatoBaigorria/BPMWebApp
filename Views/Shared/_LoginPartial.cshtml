@@ -1,26 +1,43 @@
-﻿@using Microsoft.AspNetCore.Identity
-@inject SignInManager<IdentityUser> SignInManager
-@inject UserManager<IdentityUser> UserManager
-
 <ul class="navbar-nav">
-@if (SignInManager.IsSignedIn(User))
+@if (User.Identity?.IsAuthenticated == true)
 {
     <li class="nav-item">
-        <a  class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
+        <span class="nav-link text-dark">
+            <i class="bi bi-person-circle me-1"></i> @User.Identity?.Name
+        </span>
     </li>
     <li class="nav-item">
-        <form  class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
-            <button  type="submit" class="nav-link btn btn-link text-dark">Logout</button>
+        <form class="form-inline" asp-controller="Account" asp-action="Logout" method="post">
+            <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill logout-btn">
+                <i class="bi bi-box-arrow-right me-1"></i> Cerrar Sesión
+            </button>
         </form>
     </li>
 }
 else
 {
     <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Register">Register</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Login">Login</a>
+        <a class="nav-link text-dark" asp-controller="Account" asp-action="Login">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Iniciar Sesión
+        </a>
     </li>
 }
 </ul>
+
+<style>
+    .logout-btn {
+        transition: all 0.3s ease;
+        border-width: 2px;
+        font-weight: 500;
+        padding: 0.25rem 0.75rem;
+        margin-left: 0.5rem;
+    }
+    
+    .logout-btn:hover {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transform: translateY(-1px);
+    }
+</style>
