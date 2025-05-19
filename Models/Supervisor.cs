@@ -16,6 +16,11 @@ namespace BPMWebApp.Models
         public string Apellido { get; set; }
 
         [Required]
+        [Display(Name = "Email")]
+        [EmailAddress]
+        public string Email { get; set; }
+
+        [Required]
         [Display(Name = "Legajo")]
         public int Legajo { get; set; }
 

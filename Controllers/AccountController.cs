@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
-using BPMWebApp.Models;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using System.Security.Claims;
-using System.Net.Http.Headers;
+using BPMWebApp.Models;
+using BPMWebApp.Services;
 
 namespace BPMWebApp.Controllers
 {
@@ -14,12 +16,14 @@ namespace BPMWebApp.Controllers
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _config;
         private readonly ILogger<AccountController> _logger;
+        private readonly IApiBPMService _apiBPMService;
 
-        public AccountController(IHttpClientFactory httpClientFactory, IConfiguration config, ILogger<AccountController> logger)
+        public AccountController(IHttpClientFactory httpClientFactory, IConfiguration config, ILogger<AccountController> logger, IApiBPMService apiBPMService)
         {
             _httpClient = httpClientFactory.CreateClient("ApiBPM");
             _config = config;
             _logger = logger;
+            _apiBPMService = apiBPMService;
         }
 
         [HttpGet]
@@ -199,6 +203,210 @@ namespace BPMWebApp.Controllers
             }
             _logger.LogInformation("Redirigiendo a la página de inicio");
             return RedirectToAction("Index", "Home");
+        }
+
+        [HttpGet]
+        public IActionResult OlvideContraseña()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> OlvideContraseña([FromForm] string email)
+        {
+            try
+            {
+                _logger.LogInformation($"Solicitando recuperación de contraseña para el email: {email}");
+                
+                // Validar que el email no sea nulo o vacío
+                if (string.IsNullOrEmpty(email))
+                {
+                    return BadRequest("El correo electrónico es obligatorio");
+                }
+
+                _logger.LogInformation($"Email validado: {email}");
+                
+                var formContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("email", email)
+                });
+                
+                // Imprimir el contenido del formulario para depuración
+                var formString = await formContent.ReadAsStringAsync();
+                _logger.LogInformation($"Contenido del formulario: {formString}");
+
+                // Usar la ruta correcta basada en el código del controlador
+                string ruta = "Supervisores/olvidecontrasena";
+                _logger.LogInformation($"Intentando ruta: {ruta}");
+                
+                var response = await _httpClient.PostAsync(ruta, formContent);
+                var statusCode = (int)response.StatusCode;
+                var responseContent = await response.Content.ReadAsStringAsync();
+                
+                _logger.LogInformation($"Respuesta de {ruta}: {statusCode}, Contenido: {responseContent}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    return Ok(responseContent);
+                }
+                else
+                {
+                    return BadRequest($"Error {statusCode}: {responseContent}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Excepción durante la recuperación de contraseña: {ex.Message}");
+                return BadRequest($"Error: {ex.Message}");
+            }
+        }
+
+        [HttpGet]
+        public IActionResult CambiarPassword(string access_token)
+        {
+            if (string.IsNullOrEmpty(access_token))
+            {
+                _logger.LogWarning("Intento de acceso a CambiarPassword sin token");
+                return RedirectToAction("Login");
+            }
+            
+            // Guardar el token en TempData para usarlo en el POST
+            TempData["AccessToken"] = access_token;
+            _logger.LogInformation($"Token recibido y guardado en TempData: {access_token.Substring(0, 10)}...");
+            
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CambiarPassword([FromForm] string claveNueva, [FromForm] string repetirClaveNueva)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(claveNueva) || string.IsNullOrEmpty(repetirClaveNueva))
+                {
+                    return BadRequest("Debe proporcionar una nueva contraseña");
+                }
+
+                if (claveNueva != repetirClaveNueva)
+                {
+                    return BadRequest("Las contraseñas no coinciden");
+                }
+
+                // Obtener el token de TempData
+                string token = TempData["AccessToken"] as string;
+                
+                if (string.IsNullOrEmpty(token))
+                {
+                    _logger.LogWarning("Token no encontrado en TempData");
+                    return BadRequest("Token de autorización no proporcionado");
+                }
+                
+                _logger.LogInformation($"Usando token de TempData: {token.Substring(0, 10)}...");
+
+                // Configurar el cliente HTTP con el token
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                // Decodificar el token para obtener el email
+                string tokenValue = TempData["AccessToken"] as string;
+                string email = null;
+                
+                try
+                {
+                    var handler = new JwtSecurityTokenHandler();
+                    var jsonToken = handler.ReadToken(tokenValue) as JwtSecurityToken;
+                    
+                    if (jsonToken != null)
+                    {
+                        var emailClaim = jsonToken.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.Name);
+                        if (emailClaim != null)
+                        {
+                            email = emailClaim.Value;
+                            _logger.LogInformation($"Email extraído del token: {email}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error al decodificar el token: {ex.Message}");
+                }
+                
+                var formContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("claveNueva", claveNueva),
+                    new KeyValuePair<string, string>("repetirClaveNueva", repetirClaveNueva),
+                    new KeyValuePair<string, string>("email", email ?? "")
+                });
+                
+                _logger.LogInformation("Intentando con POST: Supervisores/cambiarpassword");
+                
+                var response = await _httpClient.PostAsync("Supervisores/cambiarpassword", formContent);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning($"Error en cambio de contraseña: {response.StatusCode}, Detalles: {errorContent}");
+                    return BadRequest(errorContent);
+                }
+
+                var resultado = await response.Content.ReadAsStringAsync();
+                return Ok(resultado);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Excepción durante el cambio de contraseña: {ex.Message}");
+                return BadRequest($"Error: {ex.Message}");
+            }
+        }
+
+        [HttpGet]
+        public IActionResult CambiarPasswordPerfil()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CambiarPasswordPorInput([FromForm] string claveVieja, [FromForm] string claveNueva, [FromForm] string repetirClaveNueva)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(claveVieja) || string.IsNullOrEmpty(claveNueva) || string.IsNullOrEmpty(repetirClaveNueva))
+                {
+                    return BadRequest("Todos los campos son obligatorios");
+                }
+
+                if (claveNueva != repetirClaveNueva)
+                {
+                    return BadRequest("La nueva contraseña y su confirmación no coinciden");
+                }
+
+                // Verificar si el usuario está autenticado
+                if (!User.Identity.IsAuthenticated)
+                {
+                    _logger.LogWarning("El usuario no está autenticado");
+                    return Unauthorized("Debe iniciar sesión para cambiar su contraseña");
+                }
+                
+                // Usar el servicio ApiBPMService para cambiar la contraseña
+                _logger.LogInformation("Usando ApiBPMService para cambiar la contraseña desde el perfil");
+                
+                // Llamar al método específico para cambiar la contraseña desde el perfil
+                var resultado = await _apiBPMService.CambiarPasswordPerfilAsync(claveVieja, claveNueva, repetirClaveNueva);
+                
+                _logger.LogInformation($"Resultado del cambio de contraseña: {resultado}");
+                
+                // Verificar si el resultado indica un error
+                if (resultado.StartsWith("Error") || resultado.Contains("No se pudo"))
+                {
+                    return BadRequest(resultado);
+                }
+                
+                return Ok(resultado);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Excepción durante el cambio de contraseña: {ex.Message}");
+                return BadRequest($"Error: {ex.Message}");
+            }
         }
 
         [HttpPost]

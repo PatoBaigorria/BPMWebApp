@@ -26,5 +26,10 @@ namespace BPMWebApp.Services
 
         // Método para exportar auditoría a Excel
         Task<FileExportDTO> GetExportarAuditoriaExcelAsync(int id);
+
+        // Métodos para recuperación y cambio de contraseña
+        Task<string> EnviarEmailRecuperacionAsync(string email);
+        Task<string> CambiarPasswordConTokenAsync(string token, string claveNueva, string repetirClaveNueva);
+        Task<string> CambiarPasswordPerfilAsync(string claveVieja, string claveNueva, string repetirClaveNueva);
     }
 }

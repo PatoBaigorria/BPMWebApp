@@ -4,6 +4,11 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Linq;
+using System.Text;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
 using BPMWebApp.Models;
 using BPMWebApp.Services;
 using Microsoft.Extensions.Logging;
@@ -56,6 +61,145 @@ public class ApiBPMService : IApiBPMService
         catch (Exception ex)
         {
             _logger?.LogError($"Error al agregar token: {ex.Message}");
+        }
+    }
+    
+    // Clase para almacenar la información del usuario obtenida del token
+    private class UserInfo
+    {
+        public string Legajo { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+    }
+
+    private UserInfo ObtenerInfoUsuarioDesdeToken()
+    {
+        var userInfo = new UserInfo();
+        
+        try
+        {
+            var token = _httpContextAccessor.HttpContext?.Request.Cookies["jwt_token"];
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                _logger?.LogWarning("No se encontró token para extraer información del usuario");
+                return userInfo;
+            }
+            
+            // Verificar si el token tiene el formato correcto antes de intentar decodificarlo
+            if (!token.Contains(".") || token.Count(c => c == '.') != 2)
+            {
+                _logger?.LogWarning("El token JWT no tiene el formato correcto (header.payload.signature)");
+                return userInfo;
+            }
+            
+            try
+            {
+                // Decodificar el token JWT para obtener la información del usuario
+                var handler = new JwtSecurityTokenHandler();
+                
+                // Verificar si el token puede ser leído
+                if (!handler.CanReadToken(token))
+                {
+                    _logger?.LogWarning("El token JWT no puede ser leído por el JwtSecurityTokenHandler");
+                    return userInfo;
+                }
+                
+                var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
+                
+                if (jwtToken == null)
+                {
+                    _logger?.LogWarning("No se pudo convertir el token a JwtSecurityToken");
+                    return userInfo;
+                }
+                
+                // Buscar el claim de legajo
+                var legajoClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "legajo" || c.Type == "Legajo" || c.Type == "unique_name");
+                if (legajoClaim != null)
+                {
+                    userInfo.Legajo = legajoClaim.Value;
+                    _logger?.LogInformation($"Legajo encontrado en el token: {legajoClaim.Value}");
+                }
+                
+                // Buscar el claim de email
+                var emailClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "email" || c.Type == ClaimTypes.Email);
+                if (emailClaim != null)
+                {
+                    userInfo.Email = emailClaim.Value;
+                    _logger?.LogInformation($"Email encontrado en el token: {emailClaim.Value}");
+                }
+                
+                // Buscar el claim de nombre completo
+                var fullNameClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "FullName" || c.Type == ClaimTypes.Name);
+                if (fullNameClaim != null)
+                {
+                    userInfo.FullName = fullNameClaim.Value;
+                    _logger?.LogInformation($"Nombre completo encontrado en el token: {fullNameClaim.Value}");
+                }
+            }
+            catch (Exception tokenEx)
+            {
+                _logger?.LogWarning($"Error al procesar el token JWT: {tokenEx.Message}");
+                // Intentar obtener el legajo de una manera alternativa
+                var legajoClaim = _httpContextAccessor.HttpContext?.User.FindFirst("Legajo");
+                if (legajoClaim != null)
+                {
+                    userInfo.Legajo = legajoClaim.Value;
+                    _logger?.LogInformation($"Legajo obtenido del HttpContext: {legajoClaim.Value}");
+                }
+            }
+            
+            return userInfo;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError($"Error al obtener información del usuario desde token: {ex.Message}");
+            return userInfo;
+        }
+    }
+    
+    private string GenerarTokenConEmail(string email)
+    {
+        try
+        {
+            // Obtener la configuración del token desde appsettings.json
+            var secretKey = _configuration["TokenAuthentication:SecretKey"];
+            var issuer = _configuration["TokenAuthentication:Issuer"];
+            var audience = _configuration["TokenAuthentication:Audience"];
+            
+            if (string.IsNullOrEmpty(secretKey) || string.IsNullOrEmpty(issuer) || string.IsNullOrEmpty(audience))
+            {
+                _logger?.LogWarning("Configuración de token incompleta");
+                return string.Empty;
+            }
+            
+            // Crear un nuevo token con el email como ClaimTypes.Name
+            var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secretKey));
+            var credenciales = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, email),
+                new Claim(ClaimTypes.Role, "Supervisor")
+            };
+            
+            var token = new JwtSecurityToken(
+                issuer: issuer,
+                audience: audience,
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(5),
+                signingCredentials: credenciales
+            );
+            
+            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+            _logger?.LogInformation($"Token temporal generado con email {email}");
+            
+            return tokenString;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError($"Error al generar token con email: {ex.Message}");
+            return string.Empty;
         }
     }
 
@@ -1102,4 +1246,247 @@ public class ApiBPMService : IApiBPMService
         }
     }
 
+    // Implementación de los métodos para recuperación y cambio de contraseña
+    public async Task<string> EnviarEmailRecuperacionAsync(string email)
+    {
+        try
+        {
+            // Verificar que la URL base esté configurada
+            if (_httpClient.BaseAddress == null)
+            {
+                _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
+                _logger?.LogInformation($"Configurando BaseAddress en EnviarEmailRecuperacionAsync: {_httpClient.BaseAddress}");
+            }
+
+            // Crear el contenido del formulario
+            var formContent = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("email", email)
+            });
+
+            // Probar con múltiples variantes de la URL
+            var urls = new[]
+            {
+                "Supervisor/olvidecontrasena",
+                "api/Supervisor/olvidecontrasena",
+                "Supervisor/olvidecontraseña",
+                "api/Supervisor/olvidecontraseña",
+                "SupervisorController/olvidecontrasena",
+                "api/SupervisorController/olvidecontrasena",
+                "SupervisorController/olvidecontraseña",
+                "api/SupervisorController/olvidecontraseña",
+                "Supervisores/olvidecontrasena",
+                "api/Supervisores/olvidecontrasena",
+                "Supervisores/olvidecontraseña",
+                "api/Supervisores/olvidecontraseña"
+            };
+
+            HttpResponseMessage response = null;
+            string currentUrl = "";
+
+            foreach (var url in urls)
+            {
+                currentUrl = url;
+                _logger?.LogInformation($"Intentando URL para recuperación de contraseña: {_httpClient.BaseAddress}{url}");
+
+                response = await _httpClient.PostAsync(url, formContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger?.LogInformation($"URL exitosa para recuperación de contraseña: {_httpClient.BaseAddress}{url}");
+                    var content = await response.Content.ReadAsStringAsync();
+                    return content;
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger?.LogWarning($"URL fallida para recuperación de contraseña: {_httpClient.BaseAddress}{url} - Status: {response.StatusCode}, Detalles: {errorContent}");
+                }
+            }
+
+            _logger?.LogError($"Todas las URLs fallaron para recuperación de contraseña con email: {email}");
+            return "No se pudo procesar la solicitud de recuperación de contraseña";
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, $"Error al procesar recuperación de contraseña para email: {email}");
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    public async Task<string> CambiarPasswordConTokenAsync(string token, string claveNueva, string repetirClaveNueva)
+    {
+        try
+        {
+            // Verificar que la URL base esté configurada
+            if (_httpClient.BaseAddress == null)
+            {
+                _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
+                _logger?.LogInformation($"Configurando BaseAddress en CambiarPasswordConTokenAsync: {_httpClient.BaseAddress}");
+            }
+
+            // Configurar el token en el header
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Crear el contenido del formulario
+            var formContent = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("claveNueva", claveNueva),
+                new KeyValuePair<string, string>("repetirClaveNueva", repetirClaveNueva)
+            });
+
+            // Probar con múltiples variantes de la URL
+            var urls = new[]
+            {
+                "Supervisores/cambiarpassword",
+                "api/Supervisores/cambiarpassword"
+            };
+
+            HttpResponseMessage response = null;
+            string currentUrl = "";
+
+            foreach (var url in urls)
+            {
+                currentUrl = url;
+                _logger?.LogInformation($"Intentando URL para cambio de contraseña con token: {_httpClient.BaseAddress}{url}");
+
+                response = await _httpClient.PostAsync(url, formContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger?.LogInformation($"URL exitosa para cambio de contraseña con token: {_httpClient.BaseAddress}{url}");
+                    var content = await response.Content.ReadAsStringAsync();
+                    return content;
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger?.LogWarning($"URL fallida para cambio de contraseña con token: {_httpClient.BaseAddress}{url} - Status: {response.StatusCode}, Detalles: {errorContent}");
+                }
+            }
+
+            _logger?.LogError($"Todas las URLs fallaron para cambio de contraseña con token");
+            return "No se pudo procesar la solicitud de cambio de contraseña";
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, $"Error al procesar cambio de contraseña con token");
+            return $"Error: {ex.Message}";
+        }
+        finally
+        {
+            // Limpiar el header de autorización
+            _httpClient.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
+    public async Task<string> CambiarPasswordPerfilAsync(string claveVieja, string claveNueva, string repetirClaveNueva)
+    {
+        try
+        {
+            // Verificar que la URL base esté configurada
+            if (_httpClient.BaseAddress == null)
+            {
+                _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
+                _logger?.LogInformation($"Configurando BaseAddress en CambiarPasswordPerfilAsync: {_httpClient.BaseAddress}");
+            }
+
+            // Obtener el legajo del usuario desde HttpContext.User
+            var legajoClaim = _httpContextAccessor.HttpContext?.User.FindFirst("Legajo");
+            if (legajoClaim == null)
+            {
+                _logger?.LogWarning("No se encontró el claim Legajo en el usuario autenticado");
+                return "No se pudo identificar al usuario";
+            }
+
+            string legajo = legajoClaim.Value;
+            _logger?.LogInformation($"Legajo obtenido del HttpContext: {legajo}");
+
+            // Agregar el token desde la cookie
+            string token = _httpContextAccessor.HttpContext?.Request.Cookies["jwt_token"];
+            if (string.IsNullOrEmpty(token))
+            {
+                _logger?.LogWarning("No se encontró el token JWT en las cookies");
+                return "Su sesión ha expirado. Por favor, inicie sesión nuevamente.";
+            }
+
+            // Configurar el cliente HTTP con el token
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Crear el contenido del formulario
+            var formContent = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("claveVieja", claveVieja),
+                new KeyValuePair<string, string>("claveNueva", claveNueva),
+                new KeyValuePair<string, string>("repetirClaveNueva", repetirClaveNueva)
+            });
+
+            // Intentar con PUT a cambiarviejacontrasena
+            _logger?.LogInformation($"Intentando PUT para cambio de contraseña: {_httpClient.BaseAddress}Supervisores/cambiarviejacontrasena");
+            var response = await _httpClient.PutAsync("Supervisores/cambiarviejacontrasena", formContent);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _logger?.LogInformation($"Cambio de contraseña exitoso con PUT a cambiarviejacontrasena");
+                var content = await response.Content.ReadAsStringAsync();
+                return content;
+            }
+            
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _logger?.LogWarning($"Fallo en cambio de contraseña con PUT a cambiarviejacontrasena: {response.StatusCode}, Detalles: {errorContent}");
+
+            // Intentar con un enfoque alternativo usando el legajo en la URL
+            var formContentLegajo = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("legajo", legajo),
+                new KeyValuePair<string, string>("claveVieja", claveVieja),
+                new KeyValuePair<string, string>("claveNueva", claveNueva),
+                new KeyValuePair<string, string>("repetirClaveNueva", repetirClaveNueva)
+            });
+
+            // Probar con diferentes rutas y métodos
+            var alternativas = new[]
+            {
+                ("PUT", $"Supervisores/supervisor/{legajo}/cambiarcontrasena", formContent),
+                ("POST", $"Supervisores/supervisor/{legajo}/cambiarcontrasena", formContent),
+                ("PUT", "Supervisores/cambiarcontrasena", formContentLegajo),
+                ("POST", "Supervisores/cambiarcontrasena", formContentLegajo)
+            };
+
+            foreach (var (metodo, url, contenido) in alternativas)
+            {
+                _logger?.LogInformation($"Intentando {metodo} para cambio de contraseña: {_httpClient.BaseAddress}{url}");
+                
+                response = metodo == "PUT"
+                    ? await _httpClient.PutAsync(url, contenido)
+                    : await _httpClient.PostAsync(url, contenido);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger?.LogInformation($"Cambio de contraseña exitoso con {metodo} a {url}");
+                    var content = await response.Content.ReadAsStringAsync();
+                    return content;
+                }
+                
+                errorContent = await response.Content.ReadAsStringAsync();
+                _logger?.LogWarning($"Fallo en cambio de contraseña con {metodo} a {url}: {response.StatusCode}, Detalles: {errorContent}");
+            }
+
+            // Si llegamos aquí, ninguno de los intentos funcionó
+            return "No se pudo procesar la solicitud de cambio de contraseña. Por favor, intente más tarde.";
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError($"Error al procesar cambio de contraseña desde perfil: {ex.Message}");
+            return $"Error: {ex.Message}";
+        }
+        finally
+        {
+            // Limpiar los encabezados de autorización
+            if (_httpClient.DefaultRequestHeaders.Contains("Authorization"))
+            {
+                _httpClient.DefaultRequestHeaders.Remove("Authorization");
+            }
+        }
+    }
 }
