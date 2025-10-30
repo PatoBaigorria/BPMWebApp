@@ -1391,18 +1391,7 @@ public class ApiBPMService : IApiBPMService
                 _logger?.LogInformation($"Configurando BaseAddress en CambiarPasswordPerfilAsync: {_httpClient.BaseAddress}");
             }
 
-            // Obtener el legajo del usuario desde HttpContext.User
-            var legajoClaim = _httpContextAccessor.HttpContext?.User.FindFirst("Legajo");
-            if (legajoClaim == null)
-            {
-                _logger?.LogWarning("No se encontró el claim Legajo en el usuario autenticado");
-                return "No se pudo identificar al usuario";
-            }
-
-            string legajo = legajoClaim.Value;
-            _logger?.LogInformation($"Legajo obtenido del HttpContext: {legajo}");
-
-            // Agregar el token desde la cookie
+            // Obtener el token desde la cookie
             string token = _httpContextAccessor.HttpContext?.Request.Cookies["jwt_token"];
             if (string.IsNullOrEmpty(token))
             {
@@ -1410,10 +1399,29 @@ public class ApiBPMService : IApiBPMService
                 return "Su sesión ha expirado. Por favor, inicie sesión nuevamente.";
             }
 
+            _logger?.LogInformation($"Token encontrado: {token.Substring(0, Math.Min(20, token.Length))}...");
+
+            // Diagnóstico del token JWT
+            try
+            {
+                var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                var jsonToken = handler.ReadJwtToken(token);
+                _logger?.LogInformation($"Token válido. Issuer: {jsonToken.Issuer}, Audience: {jsonToken.Audiences.FirstOrDefault()}");
+                _logger?.LogInformation($"Token expira: {jsonToken.ValidTo}, Ahora: {DateTime.UtcNow}");
+                _logger?.LogInformation($"Claims en el token: {string.Join(", ", jsonToken.Claims.Select(c => $"{c.Type}={c.Value}"))}");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"Error al leer el token JWT: {ex.Message}");
+            }
+
             // Configurar el cliente HTTP con el token
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            // Crear el contenido del formulario
+            // Log de los parámetros (sin mostrar las contraseñas completas por seguridad)
+            _logger?.LogInformation($"Parámetros: claveVieja={!string.IsNullOrEmpty(claveVieja)}, claveNueva={!string.IsNullOrEmpty(claveNueva)}, repetir={!string.IsNullOrEmpty(repetirClaveNueva)}");
+
+            // Crear el contenido del formulario exactamente como lo espera la API
             var formContent = new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string, string>("claveVieja", claveVieja),
@@ -1421,63 +1429,35 @@ public class ApiBPMService : IApiBPMService
                 new KeyValuePair<string, string>("repetirClaveNueva", repetirClaveNueva)
             });
 
-            // Intentar con PUT a cambiarviejacontrasena
-            _logger?.LogInformation($"Intentando PUT para cambio de contraseña: {_httpClient.BaseAddress}Supervisores/cambiarviejacontrasena");
+            // Usar el endpoint correcto: PUT Supervisores/cambiarviejacontrasena
+            _logger?.LogInformation($"Intentando cambio de contraseña: {_httpClient.BaseAddress}Supervisores/cambiarviejacontrasena");
             var response = await _httpClient.PutAsync("Supervisores/cambiarviejacontrasena", formContent);
+            
+            _logger?.LogInformation($"Respuesta de la API: StatusCode={response.StatusCode}");
             
             if (response.IsSuccessStatusCode)
             {
-                _logger?.LogInformation($"Cambio de contraseña exitoso con PUT a cambiarviejacontrasena");
                 var content = await response.Content.ReadAsStringAsync();
+                _logger?.LogInformation($"Cambio de contraseña exitoso: {content}");
                 return content;
             }
             
             var errorContent = await response.Content.ReadAsStringAsync();
-            _logger?.LogWarning($"Fallo en cambio de contraseña con PUT a cambiarviejacontrasena: {response.StatusCode}, Detalles: {errorContent}");
-
-            // Intentar con un enfoque alternativo usando el legajo en la URL
-            var formContentLegajo = new FormUrlEncodedContent(new[]
+            _logger?.LogWarning($"Error en cambio de contraseña: {response.StatusCode}, Detalles: '{errorContent}'");
+            
+            // Si el error está vacío, proporcionar más contexto
+            if (string.IsNullOrWhiteSpace(errorContent))
             {
-                new KeyValuePair<string, string>("legajo", legajo),
-                new KeyValuePair<string, string>("claveVieja", claveVieja),
-                new KeyValuePair<string, string>("claveNueva", claveNueva),
-                new KeyValuePair<string, string>("repetirClaveNueva", repetirClaveNueva)
-            });
-
-            // Probar con diferentes rutas y métodos
-            var alternativas = new[]
-            {
-                ("PUT", $"Supervisores/supervisor/{legajo}/cambiarcontrasena", formContent),
-                ("POST", $"Supervisores/supervisor/{legajo}/cambiarcontrasena", formContent),
-                ("PUT", "Supervisores/cambiarcontrasena", formContentLegajo),
-                ("POST", "Supervisores/cambiarcontrasena", formContentLegajo)
-            };
-
-            foreach (var (metodo, url, contenido) in alternativas)
-            {
-                _logger?.LogInformation($"Intentando {metodo} para cambio de contraseña: {_httpClient.BaseAddress}{url}");
-                
-                response = metodo == "PUT"
-                    ? await _httpClient.PutAsync(url, contenido)
-                    : await _httpClient.PostAsync(url, contenido);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger?.LogInformation($"Cambio de contraseña exitoso con {metodo} a {url}");
-                    var content = await response.Content.ReadAsStringAsync();
-                    return content;
-                }
-                
-                errorContent = await response.Content.ReadAsStringAsync();
-                _logger?.LogWarning($"Fallo en cambio de contraseña con {metodo} a {url}: {response.StatusCode}, Detalles: {errorContent}");
+                return $"Error al cambiar la contraseña: Error {response.StatusCode} - {response.ReasonPhrase}";
             }
-
-            // Si llegamos aquí, ninguno de los intentos funcionó
-            return "No se pudo procesar la solicitud de cambio de contraseña. Por favor, intente más tarde.";
+            
+            // Devolver el mensaje de error específico de la API
+            return $"Error al cambiar la contraseña: {errorContent}";
         }
         catch (Exception ex)
         {
-            _logger?.LogError($"Error al procesar cambio de contraseña desde perfil: {ex.Message}");
+            _logger?.LogError($"Excepción al cambiar contraseña desde perfil: {ex.Message}");
+            _logger?.LogError($"Stack trace: {ex.StackTrace}");
             return $"Error: {ex.Message}";
         }
         finally

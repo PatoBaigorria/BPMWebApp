@@ -33,8 +33,9 @@ namespace BPMWebApp.Controllers
                     return RedirectToAction("Login", "Account");
                 }
 
-                var fechaDesde = desde ?? DateTime.Now.AddMonths(-3);
-                var fechaHasta = hasta ?? DateTime.Now;
+                // Configurar fechas por defecto para mostrar datos del año actual
+                var fechaDesde = desde ?? new DateTime(DateTime.Now.Year, 1, 1); // Desde enero del año actual
+                var fechaHasta = hasta ?? DateTime.Now; // Hasta hoy
 
                 ViewBag.Desde = fechaDesde.ToString("yyyy-MM-dd");
                 ViewBag.Hasta = fechaHasta.ToString("yyyy-MM-dd");
@@ -50,6 +51,12 @@ namespace BPMWebApp.Controllers
                     estadisticas = estadisticas.OrderByDescending(e => e.TotalAudits).ToList();
                     
                     _logger.LogInformation($"Estadísticas obtenidas correctamente: {estadisticas.Count} supervisores");
+                    
+                    // Debug: Logging detallado de los datos
+                    foreach (var est in estadisticas)
+                    {
+                        _logger.LogInformation($"Supervisor: {est.Supervisor?.Apellido}, {est.Supervisor?.Nombre} - Total: {est.TotalAudits}, Positivas: {est.PositiveAudits}, Negativas: {est.NegativeAudits}");
+                    }
                     
                     return View("~/Views/Estadistica/Index.cshtml", estadisticas);
                 }

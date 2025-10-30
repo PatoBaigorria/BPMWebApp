@@ -11,7 +11,7 @@ using System.Text;
 
 namespace BPMWebApp.Controllers
 {
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + CookieAuthenticationDefaults.AuthenticationScheme)]
+    [Authorize(AuthenticationSchemes = "Bearer," + CookieAuthenticationDefaults.AuthenticationScheme)]
     public class AuditoriasRealizadasController : Controller
     {
         private readonly IApiBPMService _apiService;

@@ -68,8 +68,10 @@ namespace BPMWebApp.Controllers
                 }
 
                 // 3. Obtener el token de la respuesta
-                var token = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Token recibido correctamente");
+                var tokenResponse = await response.Content.ReadAsStringAsync();
+                // Limpiar el token removiendo comillas JSON si las tiene
+                var token = tokenResponse.Trim('"');
+                _logger.LogInformation($"Token recibido correctamente: {token.Substring(0, Math.Min(20, token.Length))}...");
                 
                 // Extraer el nombre del supervisor del token JWT
                 string nombreSupervisor = "Supervisor";

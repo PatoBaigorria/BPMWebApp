@@ -55,14 +55,21 @@
                             @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td>@($"{item.Supervisor?.Apellido}, {item.Supervisor?.Nombre}")</td>
+                                    <td>@(item.Supervisor != null ? $"{item.Supervisor.Apellido}, {item.Supervisor.Nombre}" : "Supervisor no disponible")</td>
                                     <td class="text-center">@item.TotalAudits</td>
                                     <td class="text-center">@item.PositiveAudits</td>
                                     <td class="text-center">@item.NegativeAudits</td>
                                     <td class="text-center">
-                                        <a href="@Url.Action("Index", "AuditoriasRealizadas", new { supervisor = item.Supervisor?.Apellido })" class="btn btn-sm btn-info">
-                                            <i class="fas fa-eye"></i> Ver Auditorías
-                                        </a>
+                                        @if (item.Supervisor != null)
+                                        {
+                                            <a href="@Url.Action("Index", "AuditoriasRealizadas", new { supervisor = item.Supervisor.Apellido })" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i> Ver Auditorías
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
                                     </td>
                                 </tr>
                             }
