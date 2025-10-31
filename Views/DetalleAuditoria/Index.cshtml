@@ -42,7 +42,7 @@
                                 var estadoTexto = auditoria.NoConforme ? "No Conforme" : "Conforme";
                                 
                                 <tr>
-                                    <td>@auditoria.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td data-order="@auditoria.Fecha.ToString("yyyy-MM-dd")">@auditoria.Fecha.ToString("dd/MM/yyyy")</td>
                                     <td>@auditoria.Supervisor?.Apellido @auditoria.Supervisor?.Nombre</td>
                                     <td>@($"{auditoria.Operario?.Apellido}, {auditoria.Operario?.Nombre}")</td>
                                     <td>@auditoria.Actividad?.Descripcion</td>

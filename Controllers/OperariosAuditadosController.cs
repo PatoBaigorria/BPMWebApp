@@ -33,13 +33,14 @@ namespace BPMWebApp.Controllers
                 if (Request.Query.ContainsKey("legajo") && string.IsNullOrEmpty(Request.Query["legajo"]))
                     legajo = null;
 
-                // Si no hay fechas, mostrar la vista sin datos
-                if (desde == null || hasta == null)
+                // Establecer fechas por defecto: desde el 1 de enero del año actual hasta hoy
+                if (desde == null)
                 {
-                    ViewBag.Desde = desde?.ToString("yyyy-MM-dd");
-                    ViewBag.Hasta = hasta?.ToString("yyyy-MM-dd");
-                    ViewBag.Legajo = legajo;
-                    return View(new List<OperarioAuditoriaResumenDTO>());
+                    desde = new DateTime(DateTime.Now.Year, 1, 1);
+                }
+                if (hasta == null)
+                {
+                    hasta = DateTime.Now;
                 }
 
                 _logger?.LogInformation($"Obteniendo resumen de operarios auditados desde {desde:yyyy-MM-dd} hasta {hasta:yyyy-MM-dd}");
@@ -119,8 +120,8 @@ namespace BPMWebApp.Controllers
         {
             try
             {
-                // Establecer fechas por defecto si no se proporcionan
-                var fechaDesde = desde ?? DateTime.Now.AddMonths(-3);
+                // Establecer fechas por defecto: desde el 1 de enero del año actual hasta hoy
+                var fechaDesde = desde ?? new DateTime(DateTime.Now.Year, 1, 1);
                 var fechaHasta = hasta ?? DateTime.Now;
                 
                 _logger?.LogInformation($"Exportando datos de operarios auditados a Excel desde {fechaDesde:yyyy-MM-dd} hasta {fechaHasta:yyyy-MM-dd}");

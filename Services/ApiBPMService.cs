@@ -940,7 +940,10 @@ public class ApiBPMService : IApiBPMService
             // Intentar con múltiples variantes de la ruta
             var urls = new[]
             {
-                // Rutas más probables
+                // Ruta correcta según el OperariosController de la API
+                $"Operarios/byLegajo?legajo={legajo}",
+                
+                // Rutas alternativas
                 $"api/Operarios/{legajo}",
                 $"Operarios/{legajo}",
                 $"api/Operarios/legajo/{legajo}",

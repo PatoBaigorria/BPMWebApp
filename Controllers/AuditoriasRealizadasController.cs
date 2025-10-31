@@ -30,24 +30,16 @@ namespace BPMWebApp.Controllers
             {
                 _logger.LogInformation("Accediendo a la página de auditorías realizadas");
 
-                // Establecer fechas por defecto si no se proporcionan
-                var fechaDesde = desde ?? DateTime.Now.AddMonths(-3);
+                // Establecer fechas por defecto: desde el 1 de enero del año actual hasta hoy
+                var fechaDesde = desde ?? new DateTime(DateTime.Now.Year, 1, 1);
                 var fechaHasta = hasta ?? DateTime.Now;
 
-                // Guardar los valores en ViewBag para mantenerlos en el formulario
-                // Solo guardar valores en ViewBag si se proporcionaron parámetros de búsqueda
-                if (desde.HasValue || hasta.HasValue || !string.IsNullOrEmpty(operario) || !string.IsNullOrEmpty(supervisor))
-                {
-                    ViewBag.Desde = fechaDesde.ToString("yyyy-MM-dd");
-                    ViewBag.Hasta = fechaHasta.ToString("yyyy-MM-dd");
-                    ViewBag.Operario = operario;
-                    ViewBag.Supervisor = supervisor;
-                    ViewBag.FiltrosAplicados = true;
-                }
-                else
-                {
-                    ViewBag.FiltrosAplicados = false;
-                }
+                // Guardar los valores en ViewBag para mantenerlos en el formulario (siempre)
+                ViewBag.Desde = fechaDesde.ToString("yyyy-MM-dd");
+                ViewBag.Hasta = fechaHasta.ToString("yyyy-MM-dd");
+                ViewBag.Operario = operario;
+                ViewBag.Supervisor = supervisor;
+                ViewBag.FiltrosAplicados = desde.HasValue || hasta.HasValue || !string.IsNullOrEmpty(operario) || !string.IsNullOrEmpty(supervisor);
 
                 // Obtener auditorías usando el endpoint principal
                 List<Auditoria> todasLasAuditorias = new List<Auditoria>();
@@ -108,6 +100,16 @@ namespace BPMWebApp.Controllers
                 todasLasAuditorias = todasLasAuditorias.OrderByDescending(a => a.Fecha).ToList();
 
                 _logger.LogInformation($"Se muestran {todasLasAuditorias.Count} auditorías en total");
+                
+                // Log de las primeras 3 auditorías para verificar el orden
+                if (todasLasAuditorias.Any())
+                {
+                    _logger.LogInformation("Primeras 3 auditorías ordenadas:");
+                    foreach (var aud in todasLasAuditorias.Take(3))
+                    {
+                        _logger.LogInformation($"  - ID: {aud.IdAuditoria}, Fecha: {aud.Fecha:dd/MM/yyyy}");
+                    }
+                }
 
                 return View(todasLasAuditorias);
             }

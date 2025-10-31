@@ -28,8 +28,8 @@ namespace BPMWebApp.Controllers
             {
                 _logger.LogInformation("Accediendo a la página de operarios sin auditoría");
                 
-                // Establecer fechas por defecto si no se proporcionan (solo para el filtro visual)
-                var fechaDesde = desde ?? DateTime.Now.AddMonths(-1);
+                // Establecer fechas por defecto: desde el 1 de enero del año actual hasta hoy
+                var fechaDesde = desde ?? new DateTime(DateTime.Now.Year, 1, 1);
                 var fechaHasta = hasta ?? DateTime.Now;
                 
                 // Guardar los valores en ViewBag para mantenerlos en el formulario
@@ -87,8 +87,8 @@ namespace BPMWebApp.Controllers
             {
                 _logger.LogInformation("Exportando datos de operarios sin auditoría a Excel");
                 
-                // Establecer fechas por defecto si no se proporcionan
-                var fechaDesde = desde ?? DateTime.Now.AddMonths(-1);
+                // Establecer fechas por defecto: desde el 1 de enero del año actual hasta hoy
+                var fechaDesde = desde ?? new DateTime(DateTime.Now.Year, 1, 1);
                 var fechaHasta = hasta ?? DateTime.Now;
                 
                 // Obtener operarios sin auditoría

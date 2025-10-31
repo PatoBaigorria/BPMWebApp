@@ -111,11 +111,17 @@
     
     <script>
         $(document).ready(function () {
-            // Inicializar DataTable con la configuración común
-            var config = Object.assign({}, dataTableConfig, {
-                order: [[0, 'asc']]
-            });
-            var table = $('#dataTable').DataTable(config);
+            // Variable para la tabla
+            var table = null;
+            
+            // Solo inicializar DataTable si hay filas de datos
+            if ($('#dataTable tbody tr').length > 0 && !$('#dataTable tbody tr td[colspan]').length) {
+                // Inicializar DataTable con la configuración común
+                var config = Object.assign({}, dataTableConfig, {
+                    order: [[0, 'asc']]
+                });
+                table = $('#dataTable').DataTable(config);
+            }
             
             // Manejar clic en chips de línea
             $('.linea-chip').on('click', function() {
@@ -125,13 +131,15 @@
                 $('.linea-chip').removeClass('btn-primary').addClass('btn-outline-primary');
                 $(this).removeClass('btn-outline-primary').addClass('btn-primary');
                 
-                // Filtrar la tabla
-                if (linea === '') {
-                    // Mostrar todas las filas si se selecciona "Todas"
-                    table.column(2).search('').draw();
-                } else {
-                    // Filtrar por la línea seleccionada
-                    table.column(2).search(linea, true, false).draw();
+                // Filtrar la tabla solo si está inicializada
+                if (table) {
+                    if (linea === '') {
+                        // Mostrar todas las filas si se selecciona "Todas"
+                        table.column(2).search('').draw();
+                    } else {
+                        // Filtrar por la línea seleccionada
+                        table.column(2).search(linea, true, false).draw();
+                    }
                 }
             });
             
@@ -145,8 +153,10 @@
                 $('.linea-chip').removeClass('btn-primary').addClass('btn-outline-primary');
                 $('.linea-chip[data-linea=""]').removeClass('btn-outline-primary').addClass('btn-primary');
                 
-                // Limpiar el filtro de la tabla
-                table.search('').columns().search('').draw();
+                // Limpiar el filtro de la tabla solo si está inicializada
+                if (table) {
+                    table.search('').columns().search('').draw();
+                }
             });
         });
     </script>

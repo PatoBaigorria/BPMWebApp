@@ -99,11 +99,38 @@
                             <ul class="list-group list-group-flush" style="font-size:0.91rem;">
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <span><strong>Operario:</strong></span>
-                                    <span>@($"{Model.Operario?.Apellido}, {Model.Operario?.Nombre}")</span>
+                                    <span>
+                                        @if (Model.Operario != null)
+                                        {
+                                            if (!string.IsNullOrWhiteSpace(Model.Operario.Apellido) || !string.IsNullOrWhiteSpace(Model.Operario.Nombre))
+                                            {
+                                                var apellido = Model.Operario.Apellido ?? "";
+                                                var nombre = Model.Operario.Nombre ?? "";
+                                                @($"{apellido} {nombre}".Trim())
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Operario @Model.Operario.Legajo</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No disponible</span>
+                                        }
+                                    </span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <span><strong>Legajo Operario:</strong></span>
-                                    <span>@Model.Operario?.Legajo</span>
+                                    <span>
+                                        @if (Model.Operario != null && Model.Operario.Legajo > 0)
+                                        {
+                                            @Model.Operario.Legajo
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No disponible</span>
+                                        }
+                                    </span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <span><strong>Línea:</strong></span>

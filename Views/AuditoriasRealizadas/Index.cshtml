@@ -73,7 +73,7 @@
                                 var estadoTexto = tieneItemNoOk ? "No Conforme" : "Conforme";
                                 
                                 <tr>
-                                    <td>@auditoria.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td data-order="@auditoria.Fecha.ToString("yyyy-MM-dd")">@auditoria.Fecha.ToString("dd/MM/yyyy")</td>
                                     <td>@($"{auditoria.Supervisor?.Apellido}, {auditoria.Supervisor?.Nombre}")</td>
                                     <td>@auditoria.Supervisor?.Legajo</td>
                                     <td>@($"{auditoria.Operario?.Apellido}, {auditoria.Operario?.Nombre}")</td>
@@ -110,11 +110,14 @@
     
     <script>
         $(document).ready(function () {
-            // Inicializar DataTable con la configuración común
-            var config = Object.assign({}, dataTableConfig, {
-                order: [[0, 'desc']]
-            });
-            var table = $('#dataTable').DataTable(config);
+            // Solo inicializar DataTable si hay filas de datos
+            if ($('#dataTable tbody tr').length > 0 && !$('#dataTable tbody tr td[colspan]').length) {
+                // Inicializar DataTable con la configuración común
+                var config = Object.assign({}, dataTableConfig, {
+                    order: [[0, 'desc']]
+                });
+                var table = $('#dataTable').DataTable(config);
+            }
         });
     </script>
 }

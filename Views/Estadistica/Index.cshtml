@@ -124,11 +124,14 @@
     
     <script>
         $(document).ready(function () {
-            // Inicializar DataTable con la configuración común
-            var config = Object.assign({}, dataTableConfig, {
-                order: [[1, 'desc']]
-            });
-            var table = $('#dataTable').DataTable(config);
+            // Solo inicializar DataTable si hay filas de datos
+            if ($('#dataTable tbody tr').length > 0 && !$('#dataTable tbody tr td[colspan]').length) {
+                // Inicializar DataTable con la configuración común
+                var config = Object.assign({}, dataTableConfig, {
+                    order: [[1, 'desc']]
+                });
+                var table = $('#dataTable').DataTable(config);
+            }
             
             @if (Model != null && Model.Any())
             {

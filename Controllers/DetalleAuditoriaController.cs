@@ -22,8 +22,8 @@ namespace BPMWebApp.Controllers
         {
             try
             {
-                // Obtener las auditorías del supervisor
-                DateOnly desde = DateOnly.FromDateTime(DateTime.Now.AddMonths(-3));
+                // Obtener las auditorías del supervisor desde el 1 de enero del año actual
+                DateOnly desde = DateOnly.FromDateTime(new DateTime(DateTime.Now.Year, 1, 1));
                 DateOnly hasta = DateOnly.FromDateTime(DateTime.Now);
                 
                 var auditorias = await _apiService.GetAuditoriasPorFechaAsync(id, desde, hasta);
@@ -33,6 +33,9 @@ namespace BPMWebApp.Controllers
                     ViewBag.Error = "No se encontraron auditorías para el supervisor seleccionado";
                     return View(new List<Auditoria>());
                 }
+                
+                // Ordenar por fecha descendente (más reciente primero)
+                auditorias = auditorias.OrderByDescending(a => a.Fecha).ToList();
                 
                 return View(auditorias);
             }
@@ -55,6 +58,22 @@ namespace BPMWebApp.Controllers
                     ViewBag.Error = "No se encontró la auditoría solicitada";
                     return View(new Auditoria());
                 }
+                
+                // DEBUG: Mostrar información del operario
+                Console.WriteLine($"\n\n==== INFORMACIÓN DEL OPERARIO ====");
+                if (auditoria.Operario != null)
+                {
+                    Console.WriteLine($"IdOperario: {auditoria.Operario.IdOperario}");
+                    Console.WriteLine($"Nombre: '{auditoria.Operario.Nombre}'");
+                    Console.WriteLine($"Apellido: '{auditoria.Operario.Apellido}'");
+                    Console.WriteLine($"Legajo: {auditoria.Operario.Legajo}");
+                    Console.WriteLine($"NombreCompleto: '{auditoria.Operario.NombreCompleto}'");
+                }
+                else
+                {
+                    Console.WriteLine("Operario es NULL");
+                }
+                Console.WriteLine($"==== FIN INFORMACIÓN DEL OPERARIO ====\n\n");
                 
                 // Agrupar los ítems por estado para facilitar su visualización
                 ViewBag.ItemsOK = auditoria.AuditoriaItems.Where(i => i.Estado == EstadoEnum.OK).ToList();
