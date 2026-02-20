@@ -122,11 +122,15 @@ namespace BPMWebApp.Controllers
         }
 
         [AllowAnonymous]
-        public async Task<IActionResult> Detalle(int id)
+        public async Task<IActionResult> Detalle(int id, string desde = null, string hasta = null)
         {
             try
             {
                 _logger.LogInformation($"Obteniendo detalles de la auditoría {id}");
+                
+                // Guardar las fechas en ViewBag para el botón Volver
+                ViewBag.FechaDesde = desde;
+                ViewBag.FechaHasta = hasta;
 
                 // Intentar obtener la auditoría real
                 Auditoria auditoria = null;

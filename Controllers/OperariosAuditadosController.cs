@@ -65,14 +65,18 @@ namespace BPMWebApp.Controllers
         }
         
         // Acción para mostrar los detalles de las auditorías negativas de un operario
-        public async Task<IActionResult> Detalle(int legajo)
+        public async Task<IActionResult> Detalle(int legajo, DateTime? desde = null, DateTime? hasta = null)
         {
             try
             {
-                _logger?.LogInformation($"Obteniendo detalles de auditorías negativas para el operario con legajo {legajo}");
+                // Establecer fechas por defecto: desde el 1 de enero del año actual hasta hoy
+                var fechaDesde = desde ?? new DateTime(DateTime.Now.Year, 1, 1);
+                var fechaHasta = hasta ?? DateTime.Now;
                 
-                // Obtener los items con estado NoOk para el operario
-                var itemsNoOk = await _apiService.GetItemsNoOkPorOperarioAsync(legajo);
+                _logger?.LogInformation($"Obteniendo detalles de auditorías negativas para el operario con legajo {legajo} en el período {fechaDesde:yyyy-MM-dd} a {fechaHasta:yyyy-MM-dd}");
+                
+                // Obtener los items con estado NoOk para el operario en el rango de fechas
+                var itemsNoOk = await _apiService.GetItemsNoOkPorOperarioAsync(legajo, fechaDesde, fechaHasta);
                 
                 // Intentar obtener información del operario
                 var operario = await _apiService.GetOperarioPorLegajoAsync(legajo);
@@ -82,9 +86,7 @@ namespace BPMWebApp.Controllers
                 if (operario == null)
                 {
                     // Obtener el resumen del operario para tener datos básicos
-                    var desde = DateTime.Today.AddMonths(-6); // Últimos 6 meses
-                    var hasta = DateTime.Today;
-                    var resumen = await _apiService.GetOperariosAuditadosResumenAsync(desde, hasta, legajo);
+                    var resumen = await _apiService.GetOperariosAuditadosResumenAsync(fechaDesde, fechaHasta, legajo);
                     var operarioResumen = resumen.FirstOrDefault(o => o.Legajo == legajo);
                     
                     nombreOperario = operarioResumen?.Nombre;
@@ -96,6 +98,8 @@ namespace BPMWebApp.Controllers
                 
                 ViewBag.Legajo = legajo;
                 ViewBag.NombreOperario = nombreOperario ?? $"Operario {legajo}";
+                ViewBag.Desde = fechaDesde.ToString("yyyy-MM-dd");
+                ViewBag.Hasta = fechaHasta.ToString("yyyy-MM-dd");
                 
                 return View(itemsNoOk);
             }

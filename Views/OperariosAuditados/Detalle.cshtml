@@ -5,108 +5,86 @@
 }
 
 <div class="container mt-4">
-    <h2>Detalles de Auditorías Negativas</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Ítems NO OK</h2>
+        <a href="@Url.Action("Index", "OperariosAuditados", new { desde = ViewBag.Desde, hasta = ViewBag.Hasta })" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
 
     @if (ViewBag.Error != null)
     {
         <div class="alert alert-danger">@ViewBag.Error</div>
     }
 
-    <div class="mb-3 text-end">
-        <a href="@Url.Action("Index", "OperariosAuditados")" class="btn btn-secondary">
-            <i class="bi bi-arrow-left"></i> Volver al listado
-        </a>
-    </div>
-
     @if (Model != null && Model.Any())
     {
-        <div class="card mb-3">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Información del Operario</h5>
+        var fechaDesdeFormateada = DateTime.TryParse(ViewBag.Desde, out DateTime fd) ? fd.ToString("dd/MM/yyyy") : ViewBag.Desde;
+        var fechaHastaFormateada = DateTime.TryParse(ViewBag.Hasta, out DateTime fh) ? fh.ToString("dd/MM/yyyy") : ViewBag.Hasta;
+        
+        <div class="row mt-3">
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white py-2">
+                        <h6 class="mb-0"><i class="bi bi-person"></i> Información del Operario</h6>
+                    </div>
+                    <div class="card-body py-2">
+                        <p class="mb-1"><strong>Nombre:</strong> @ViewBag.NombreOperario</p>
+                        <p class="mb-1"><strong>Legajo:</strong> @ViewBag.Legajo</p>
+                        <p class="mb-0"><strong>Período:</strong> @fechaDesdeFormateada a @fechaHastaFormateada</p>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <p class="mb-0"><strong>Operario:</strong> @ViewBag.NombreOperario</p>
-                <p class="mb-0"><strong>Legajo:</strong> @ViewBag.Legajo</p>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header bg-danger text-white">
-                <h5 class="mb-0">Items con Estado No OK</h5>
-            </div>
-            <div class="card-body">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Descripción del Item</th>
-                            <th>Cantidad de Ocurrencias</th>
-                            <th>Comentarios</th>
-                            <th>Firma</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model)
-                        {
-                            try
-                            {
-                                // Convertir el objeto a un diccionario dinámico para acceder a sus propiedades
-                                var itemDict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>>(System.Text.Json.JsonSerializer.Serialize(item));
-                                
+            <div class="col-md-8 mb-3">
+                <div class="card h-100">
+                    <div class="card-header bg-danger text-white py-2">
+                        <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Ítems con Estado NO OK</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-striped table-hover table-bordered mb-0">
+                            <thead class="table-light">
                                 <tr>
-                                    <td>@(itemDict.ContainsKey("descripcion") ? itemDict["descripcion"].ToString() : 
-                                          itemDict.ContainsKey("Descripcion") ? itemDict["Descripcion"].ToString() : "Sin descripción")</td>
-                                    
-                                    <td>
-                                        <span class="badge bg-danger">
-                                            @(itemDict.ContainsKey("count") ? itemDict["count"].ToString() : 
-                                              itemDict.ContainsKey("Count") ? itemDict["Count"].ToString() : "0")
-                                        </span>
-                                    </td>
-                                    
-                                    <td>
-                                        @if ((itemDict.ContainsKey("comentariosAuditoria") && itemDict["comentariosAuditoria"].ValueKind == System.Text.Json.JsonValueKind.Array) ||
-                                             (itemDict.ContainsKey("ComentariosAuditoria") && itemDict["ComentariosAuditoria"].ValueKind == System.Text.Json.JsonValueKind.Array))
-                                        {
-                                            var comentarios = itemDict.ContainsKey("comentariosAuditoria") ? 
-                                                            itemDict["comentariosAuditoria"] : itemDict["ComentariosAuditoria"];
+                                    <th class="ps-3">Descripción del Ítem</th>
+                                    <th class="text-center" style="width: 150px;">Ocurrencias</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model)
+                                {
+                                    try
+                                    {
+                                        var itemDict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>>(System.Text.Json.JsonSerializer.Serialize(item));
+                                        
+                                        <tr>
+                                            <td class="ps-3">@(itemDict.ContainsKey("descripcion") ? itemDict["descripcion"].ToString() : 
+                                                  itemDict.ContainsKey("Descripcion") ? itemDict["Descripcion"].ToString() : "Sin descripción")</td>
                                             
-                                            <ul class="list-group">
-                                                @foreach (var comentario in comentarios.EnumerateArray())
-                                                {
-                                                    if (!string.IsNullOrEmpty(comentario.ToString()))
-                                                    {
-                                                        <li class="list-group-item">@comentario.ToString()</li>
-                                                    }
-                                                }
-                                            </ul>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Sin comentarios</span>
-                                        }
-                                    </td>
-                                    
-                                    <td>
-                                        <span class="badge bg-danger">No Conforme</span>
-                                    </td>
-                                </tr>
-                            }
-                            catch (Exception ex)
-                            {
-                                <tr>
-                                    <td colspan="3" class="text-danger">Error al procesar item: @ex.Message</td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
+                                            <td class="text-center">
+                                                <span class="badge bg-danger fs-6">
+                                                    @(itemDict.ContainsKey("count") ? itemDict["count"].ToString() : 
+                                                      itemDict.ContainsKey("Count") ? itemDict["Count"].ToString() : "0")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        <tr>
+                                            <td colspan="2" class="text-danger ps-3">Error al procesar item: @ex.Message</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     }
     else
     {
         <div class="alert alert-info">
-            No se encontraron items con estado No OK para este operario.
+            <i class="bi bi-info-circle"></i> No se encontraron ítems con estado No OK para este operario en el período seleccionado.
         </div>
     }
 </div>

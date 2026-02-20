@@ -38,10 +38,10 @@ namespace BPMWebApp.Controllers
                 ViewBag.LineaFilter = lineaFilter;
                 ViewBag.FiltrosAplicados = desde.HasValue || hasta.HasValue || !string.IsNullOrEmpty(lineaFilter);
                 
-                // Obtener operarios sin auditoría
-                var operarios = await _apiService.GetOperariosSinAuditoriaAsync();
+                // Obtener operarios sin auditoría usando las fechas del filtro
+                var operarios = await _apiService.GetOperariosSinAuditoriaAsync(fechaDesde, fechaHasta);
                 
-                _logger.LogInformation($"Se obtuvieron {operarios.Count} operarios sin auditoría");
+                _logger.LogInformation($"Se obtuvieron {operarios.Count} operarios sin auditoría en el período {fechaDesde:yyyy-MM-dd} a {fechaHasta:yyyy-MM-dd}");
                 
                 // Filtrar por línea si se proporciona un filtro
                 if (!string.IsNullOrEmpty(lineaFilter))
@@ -91,8 +91,8 @@ namespace BPMWebApp.Controllers
                 var fechaDesde = desde ?? new DateTime(DateTime.Now.Year, 1, 1);
                 var fechaHasta = hasta ?? DateTime.Now;
                 
-                // Obtener operarios sin auditoría
-                var operarios = await _apiService.GetOperariosSinAuditoriaAsync();
+                // Obtener operarios sin auditoría usando las fechas del filtro
+                var operarios = await _apiService.GetOperariosSinAuditoriaAsync(fechaDesde, fechaHasta);
                 
                 // Filtrar por línea si se proporciona un filtro
                 if (!string.IsNullOrEmpty(lineaFilter))

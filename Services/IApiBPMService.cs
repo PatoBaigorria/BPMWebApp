@@ -12,14 +12,15 @@ namespace BPMWebApp.Services
         Task<List<Auditoria>> GetTodasAuditoriasAsync(DateOnly desde, DateOnly hasta);
         Task<List<Auditoria>> GetAuditoriasPorSupervisorAsync(DateOnly desde, DateOnly hasta, int? supervisorId = null);
         Task<bool> GuardarComentarioAuditoriaAsync(int auditoriaId, string comentario);
-        Task<List<OperarioSinAuditoriaDTO>> GetOperariosSinAuditoriaAsync();
+        Task<List<OperarioSinAuditoriaDTO>> GetOperariosSinAuditoriaAsync(DateTime? desde = null, DateTime? hasta = null);
         Task<List<OperarioAuditoriaResumenDTO>> GetOperariosAuditadosResumenAsync(DateTime desde, DateTime hasta, int? legajo = null);
-        Task<List<object>> GetItemsNoOkPorOperarioAsync(int legajo);
+        Task<List<object>> GetItemsNoOkPorOperarioAsync(int legajo, DateTime? desde = null, DateTime? hasta = null);
         Task<Operario> GetOperarioPorLegajoAsync(int legajo);
 
         // Nuevos métodos para el dashboard
         Task<ResumenAuditoriasDTO> GetResumenAuditoriasAsync(DateTime desde, DateTime hasta);
         Task<IndicadoresClaveDTO> GetIndicadoresClaveAsync(DateTime desde, DateTime hasta);
+        Task<List<NoConformesPorLineaVM>> GetEstadisticasNoConformesPorLineaAsync(DateTime desde, DateTime hasta);
 
         // Método para obtener la firma digital del operario
         Task<string?> GetFirmaDigitalOperarioAsync(int idOperario);

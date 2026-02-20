@@ -108,11 +108,11 @@
                         <p class="text-muted small">Desde el 1 de enero hasta hoy</p>
                         <div class="d-flex justify-content-around mt-2">
                             <div class="text-center">
-                                <div class="h4 mb-0 text-primary">@(ViewBag.AuditoriasTotal > 0 ? ViewBag.AuditoriasTotal : new Random().Next(25, 75))</div>
+                                <div class="h4 mb-0 text-primary">@(ViewBag.AuditoriasTotal ?? 0)</div>
                                 <small class="text-muted">Auditorías Realizadas</small>
                             </div>
                             <div class="text-center">
-                                <div class="h4 mb-0 text-success">@(ViewBag.ConformidadGeneral > 0 ? ViewBag.ConformidadGeneral : new Random().Next(70, 95))%</div>
+                                <div class="h4 mb-0 text-success">@(ViewBag.ConformidadGeneral ?? 0)%</div>
                                 <small class="text-muted">Conformidad General</small>
                             </div>
                         </div>

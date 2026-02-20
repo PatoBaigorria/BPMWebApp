@@ -72,7 +72,7 @@
                             <td>
                                 @if (op.AuditoriasNegativas > 0)
                                 {
-                                    <a href="@Url.Action("Detalle", "OperariosAuditados", new { legajo = op.Legajo })" class="btn btn-sm btn-info">
+                                    <a href="@Url.Action("Detalle", "OperariosAuditados", new { legajo = op.Legajo, desde = ViewBag.Desde, hasta = ViewBag.Hasta })" class="btn btn-sm btn-info">
                                         <i class="fas fa-eye"></i> Detalles
                                     </a>
                                 }

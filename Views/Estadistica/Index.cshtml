@@ -114,135 +114,207 @@
                 </div>
             </div>
         </div>
+
+        <div class="row">
+            <div class="col-xl-12">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Auditorías No Conformes por Línea</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-bar" style="height: 300px;">
+                            <canvas id="lineasChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 </div>
 
 @section Scripts {
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
         $(document).ready(function () {
-            // Solo inicializar DataTable si hay filas de datos
-            if ($('#dataTable tbody tr').length > 0 && !$('#dataTable tbody tr td[colspan]').length) {
-                // Inicializar DataTable con la configuración común
-                var config = Object.assign({}, dataTableConfig, {
-                    order: [[1, 'desc']]
-                });
-                var table = $('#dataTable').DataTable(config);
-            }
             
+            // ---------------------------------------------------------
+            // 1. Configuración de la Tabla
+            // ---------------------------------------------------------
+            if ($('#dataTable tbody tr').length > 0 && !$('#dataTable tbody tr td[colspan]').length) {
+                var baseConfig = (typeof dataTableConfig !== 'undefined') ? dataTableConfig : {};
+                var config = Object.assign({}, baseConfig, { order: [[1, 'desc']] });
+                $('#dataTable').DataTable(config);
+            }
+
+            // ---------------------------------------------------------
+            // 2. Gráficos Originales (Actualizados a sintaxis Chart.js v4)
+            // ---------------------------------------------------------
             @if (Model != null && Model.Any())
             {
-                // Preparar los datos para los gráficos en el lado del servidor
                 var totalPositivas = Model.Sum(m => m.PositiveAudits);
                 var totalNegativas = Model.Sum(m => m.NegativeAudits);
                 
-                var supervisores = new List<string>();
-                var positivas = new List<int>();
-                var negativas = new List<int>();
+                var supervisoresList = new List<string>();
+                var positivasList = new List<int>();
+                var negativasList = new List<int>();
                 
                 foreach (var item in Model.Take(5))
                 {
-                    supervisores.Add($"{item.Supervisor?.Apellido}, {item.Supervisor?.Nombre}");
-                    positivas.Add(item.PositiveAudits);
-                    negativas.Add(item.NegativeAudits);
+                    supervisoresList.Add($"{item.Supervisor?.Apellido}, {item.Supervisor?.Nombre}");
+                    positivasList.Add(item.PositiveAudits);
+                    negativasList.Add(item.NegativeAudits);
                 }
                 
-                var supervisoresJson = System.Text.Json.JsonSerializer.Serialize(supervisores);
-                var positivasJson = System.Text.Json.JsonSerializer.Serialize(positivas);
-                var negativasJson = System.Text.Json.JsonSerializer.Serialize(negativas);
-                
+                var supervisoresJson = System.Text.Json.JsonSerializer.Serialize(supervisoresList);
+                var positivasJson = System.Text.Json.JsonSerializer.Serialize(positivasList);
+                var negativasJson = System.Text.Json.JsonSerializer.Serialize(negativasList);
+
                 <text>
-                // Datos para el gráfico de torta (Total de auditorías positivas vs negativas)
-                var totalPositivas = @totalPositivas;
-                var totalNegativas = @totalNegativas;
-                
-                var pieCtx = document.getElementById('auditoriasChart').getContext('2d');
-                var pieChart = new Chart(pieCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: ['Positivas', 'Negativas'],
-                        datasets: [{
-                            data: [totalPositivas, totalNegativas],
-                            backgroundColor: ['#1cc88a', '#e74a3b'],
-                            hoverBackgroundColor: ['#17a673', '#c93a2d'],
-                            hoverBorderColor: "rgba(234, 236, 244, 1)",
-                        }],
-                    },
-                    options: {
-                        maintainAspectRatio: false,
-                        tooltips: {
-                            backgroundColor: "rgb(255,255,255)",
-                            bodyFontColor: "#858796",
-                            borderColor: '#dddfeb',
-                            borderWidth: 1,
-                            xPadding: 15,
-                            yPadding: 15,
-                            displayColors: false,
-                            caretPadding: 10,
+                // --- Gráfico de Torta ---
+                var ctxPie = document.getElementById('auditoriasChart');
+                if (ctxPie) {
+                    new Chart(ctxPie.getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: ['Positivas', 'Negativas'],
+                            datasets: [{
+                                data: [@totalPositivas, @totalNegativas],
+                                backgroundColor: ['#1cc88a', '#e74a3b'],
+                                hoverBackgroundColor: ['#17a673', '#c93a2d'],
+                                hoverBorderColor: "rgba(234, 236, 244, 1)",
+                            }],
                         },
-                        legend: {
-                            display: true,
-                            position: 'bottom'
-                        },
-                        cutoutPercentage: 80,
-                    },
-                });
-                
-                // Datos para el gráfico de barras (Comparación de supervisores)
-                var supervisores = @Html.Raw(supervisoresJson);
-                var positivas = @Html.Raw(positivasJson);
-                var negativas = @Html.Raw(negativasJson);
-                
-                var barCtx = document.getElementById('supervisoresChart').getContext('2d');
-                var barChart = new Chart(barCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: supervisores,
-                        datasets: [
-                            {
-                                label: "Positivas",
-                                backgroundColor: "#1cc88a",
-                                data: positivas,
+                        options: {
+                            maintainAspectRatio: false,
+                            rotation: 180,
+                            plugins: {
+                                legend: { display: true, position: 'bottom' }
                             },
-                            {
-                                label: "Negativas",
-                                backgroundColor: "#e74a3b",
-                                data: negativas,
-                            }
-                        ],
-                    },
-                    options: {
-                        maintainAspectRatio: false,
-                        scales: {
-                            xAxes: [{
-                                stacked: false,
-                                gridLines: {
-                                    display: false,
-                                    drawBorder: false
-                                },
-                                ticks: {
-                                    maxRotation: 45,
-                                    minRotation: 45
-                                }
-                            }],
-                            yAxes: [{
-                                stacked: false,
-                                ticks: {
-                                    beginAtZero: true
-                                }
-                            }],
-                        },
-                        legend: {
-                            display: true,
-                            position: 'bottom'
+                            cutout: '80%', 
                         }
-                    }
-                });
+                    });
+                }
+
+                // --- Gráfico de Barras (Supervisores) ---
+                var ctxBar = document.getElementById('supervisoresChart');
+                if (ctxBar) {
+                    new Chart(ctxBar.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: @Html.Raw(supervisoresJson),
+                            datasets: [
+                                { label: "Positivas", backgroundColor: "#1cc88a", data: @Html.Raw(positivasJson) },
+                                { label: "Negativas", backgroundColor: "#e74a3b", data: @Html.Raw(negativasJson) }
+                            ],
+                        },
+                        options: {
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'bottom' }
+                            },
+                            scales: {
+                                x: { grid: { display: false } }, // Sintaxis v4 correcta
+                                y: { beginAtZero: true }         // Sintaxis v4 correcta
+                            }
+                        }
+                    });
+                }
                 </text>
             }
+
+            // ---------------------------------------------------------
+            // 3. NUEVO Gráfico (Desde API 5222)
+            // ---------------------------------------------------------
+            
+            var inputDesde = $('input[name="desde"]').val();
+            var inputHasta = $('input[name="hasta"]').val();
+
+            // NOTA: Si tu web está en HTTPS (candado cerrado), el navegador podría bloquear
+            // la petición a HTTP (5222). Si eso pasa, prueba cambiar 'http' por 'https'
+            // y el puerto a 7xxx (el puerto seguro de tu API si lo tiene).
+            var apiUrl = `http://localhost:5222/api/Estadisticas/no-conforme?desde=${inputDesde}&hasta=${inputHasta}`;
+            
+            console.log("--> INTENTANDO CONECTAR A: ", apiUrl);
+
+            $.ajax({
+                url: apiUrl,
+                type: 'GET',
+                success: function (data) {
+                    console.log("--> DATOS RECIBIDOS:", data);
+                    var conteoPorLinea = {};
+
+                    if (data && Array.isArray(data)) {
+                        data.forEach(function(item) {
+                            if (item.noConforme === true) {
+                                var nombreLinea = "Línea " + (item.idLinea || "?");
+                                if (conteoPorLinea[nombreLinea]) {
+                                    conteoPorLinea[nombreLinea]++;
+                                } else {
+                                    conteoPorLinea[nombreLinea] = 1;
+                                }
+                            }
+                        });
+                    }
+
+                    var labels = Object.keys(conteoPorLinea);
+                    var valores = Object.values(conteoPorLinea);
+
+                    var ctxLineas = document.getElementById("lineasChart");
+                    if (ctxLineas) {
+                        new Chart(ctxLineas, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: "No Conformes",
+                                    backgroundColor: "purple",
+                                    borderColor: "#e74a3b",
+                                    data: valores,
+                                }],
+                            },
+                            options: {
+                                maintainAspectRatio: false,
+                                layout: { padding: { left: 10, right: 25, top: 25, bottom: 0 } },
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                return context.parsed.y + " Auditorías";
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: { 
+                                        grid: { display: false, drawBorder: false },
+                                        ticks: { maxRotation: 0 }
+                                    },
+                                    y: { 
+                                        beginAtZero: true,
+                                        ticks: { precision: 0 },
+                                        grid: { borderDash: [2] }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("--> ERROR FINAL:", error);
+                    console.log("--> RESPUESTA SERVIDOR:", xhr.responseText);
+                    
+                    // Alerta visual si falla por Mixed Content o 404
+                    if(status === 0 || status === 404) {
+                        console.warn("Posible error de puerto o Mixed Content (HTTP vs HTTPS).");
+                    }
+                }
+            });
+
         });
     </script>
 }

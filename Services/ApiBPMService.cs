@@ -241,6 +241,44 @@ public class ApiBPMService : IApiBPMService
         }
     }
 
+    public async Task<List<NoConformesPorLineaVM>> GetEstadisticasNoConformesPorLineaAsync(DateTime desde, DateTime hasta)
+    {
+        try
+        {
+            AgregarToken(); // Agregamos el token de autenticación
+
+            // Verificar que la URL base esté configurada
+            if (_httpClient.BaseAddress == null)
+            {
+                _httpClient.BaseAddress = new Uri(_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5222/");
+            }
+
+            // Construir la URL para el nuevo endpoint de la API
+            // Nota: Asegúrate de que este endpoint exista en tu API de Backend
+            var url = $"api/Estadisticas/no-conformes-por-linea?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+
+            _logger?.LogInformation($"Llamando a la API de líneas en: {_httpClient.BaseAddress}{url}");
+
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger?.LogError($"Error al obtener estadísticas por línea: {response.StatusCode}, Detalles: {errorContent}");
+                return new List<NoConformesPorLineaVM>();
+            }
+
+            var resultados = await response.Content.ReadFromJsonAsync<List<NoConformesPorLineaVM>>();
+            return resultados ?? new List<NoConformesPorLineaVM>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError($"Error en GetEstadisticasNoConformesPorLineaAsync: {ex.Message}");
+            // Devolvemos una lista vacía para que la interfaz no se rompa si la API falla
+            return new List<NoConformesPorLineaVM>();
+        }
+    }
+
 
     public async Task<List<Auditoria>> GetAuditoriasPorFechaAsync(int supervisorId, DateOnly desde, DateOnly hasta)
     {
@@ -333,14 +371,8 @@ public class ApiBPMService : IApiBPMService
                 _logger?.LogInformation($"Configurando BaseAddress en GetAuditoriaDetalleAsync: {_httpClient.BaseAddress}");
             }
 
-            // Primero intentamos obtener todas las auditorías y filtrar por ID
-            var fechaDesde = DateTime.Now.AddYears(-1); // Buscar en el último año
-            var fechaHasta = DateTime.Now;
-
-            _logger?.LogInformation($"Intentando obtener auditoría {auditoriaId} usando el endpoint general de auditorías");
-
-            // Usar el endpoint de auditorías que ya existe
-            var url = $"Auditorias?desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}";
+            // Usar el nuevo endpoint específico para obtener una auditoría por ID
+            var url = $"Auditorias/{auditoriaId}";
 
             _logger?.LogInformation($"Llamando a la API en: {_httpClient.BaseAddress}{url}");
 
@@ -349,61 +381,16 @@ public class ApiBPMService : IApiBPMService
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger?.LogError($"Error al obtener auditorías. Status Code: {response.StatusCode}, Detalles: {errorContent}");
-
-                // Intentar con el endpoint por-supervisor como alternativa
-                _logger?.LogInformation("Intentando con el endpoint por-supervisor como alternativa");
-                url = $"Auditorias/por-supervisor?desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}";
-
-                response = await _httpClient.GetAsync(url);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    errorContent = await response.Content.ReadAsStringAsync();
-                    _logger?.LogError($"Error al obtener auditorías por supervisor. Status Code: {response.StatusCode}, Detalles: {errorContent}");
-                    throw new HttpRequestException($"Error al obtener detalles de auditoría. Status Code: {response.StatusCode}, Detalles: {errorContent}");
-                }
+                _logger?.LogError($"Error al obtener auditoría {auditoriaId}. Status Code: {response.StatusCode}, Detalles: {errorContent}");
+                throw new HttpRequestException($"Error al obtener detalles de auditoría. Status Code: {response.StatusCode}, Detalles: {errorContent}");
             }
 
-            var auditorias = await response.Content.ReadFromJsonAsync<List<Auditoria>>();
-
-            // Filtrar para obtener la auditoría específica por ID
-            var auditoria = auditorias?.FirstOrDefault(a => a.IdAuditoria == auditoriaId);
+            var auditoria = await response.Content.ReadFromJsonAsync<Auditoria>();
 
             if (auditoria == null)
             {
                 _logger?.LogWarning($"No se encontró la auditoría con ID {auditoriaId}");
-                return new Auditoria(); // Devolver una auditoría vacía
-            }
-
-            // Si la auditoría no tiene ítems, intentar obtenerlos por separado
-            if (auditoria.AuditoriaItems == null || !auditoria.AuditoriaItems.Any())
-            {
-                _logger?.LogInformation($"La auditoría {auditoriaId} no tiene ítems, intentando obtenerlos por separado");
-
-                try
-                {
-                    // Intentar obtener los ítems de la auditoría usando el endpoint de AuditoriasItemBPM
-                    var itemsUrl = $"AuditoriasItemBPM";
-                    var itemsResponse = await _httpClient.GetAsync(itemsUrl);
-
-                    if (itemsResponse.IsSuccessStatusCode)
-                    {
-                        var allItems = await itemsResponse.Content.ReadFromJsonAsync<List<AuditoriaItemBPM>>();
-                        var auditoriaItems = allItems?.Where(i => i.IdAuditoria == auditoriaId).ToList();
-
-                        if (auditoriaItems != null && auditoriaItems.Any())
-                        {
-                            _logger?.LogInformation($"Se encontraron {auditoriaItems.Count} ítems para la auditoría {auditoriaId}");
-                            auditoria.AuditoriaItems = auditoriaItems;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning($"Error al obtener ítems de auditoría: {ex.Message}");
-                    // Continuar incluso si no se pueden obtener los ítems
-                }
+                return new Auditoria();
             }
 
             _logger?.LogInformation($"Se obtuvo la auditoría {auditoriaId} con {auditoria.AuditoriaItems?.Count ?? 0} ítems");
@@ -753,7 +740,7 @@ public class ApiBPMService : IApiBPMService
         }
     }
 
-    public async Task<List<OperarioSinAuditoriaDTO>> GetOperariosSinAuditoriaAsync()
+    public async Task<List<OperarioSinAuditoriaDTO>> GetOperariosSinAuditoriaAsync(DateTime? desde = null, DateTime? hasta = null)
     {
         try
         {
@@ -766,8 +753,17 @@ public class ApiBPMService : IApiBPMService
                 _logger?.LogInformation($"Configurando BaseAddress en GetOperariosSinAuditoriaAsync: {_httpClient.BaseAddress}");
             }
 
-            // Construir la URL para obtener operarios sin auditoría
-            var url = $"Auditorias/auditorias-operario";
+            // Construir la URL con parámetros de fecha si se especifican
+            var url = "Auditorias/auditorias-operario";
+            if (desde.HasValue || hasta.HasValue)
+            {
+                var queryParams = new List<string>();
+                if (desde.HasValue)
+                    queryParams.Add($"desde={desde.Value:yyyy-MM-dd}");
+                if (hasta.HasValue)
+                    queryParams.Add($"hasta={hasta.Value:yyyy-MM-dd}");
+                url += "?" + string.Join("&", queryParams);
+            }
 
             _logger?.LogInformation($"Llamando a la API en: {_httpClient.BaseAddress}{url}");
 
@@ -855,7 +851,7 @@ public class ApiBPMService : IApiBPMService
         }
     }
 
-    public async Task<List<object>> GetItemsNoOkPorOperarioAsync(int legajo)
+    public async Task<List<object>> GetItemsNoOkPorOperarioAsync(int legajo, DateTime? desde = null, DateTime? hasta = null)
     {
         try
         {
@@ -868,22 +864,29 @@ public class ApiBPMService : IApiBPMService
                 _logger?.LogInformation($"Configurando BaseAddress en GetItemsNoOkPorOperarioAsync: {_httpClient.BaseAddress}");
             }
 
+            // Construir parámetros de fecha
+            var fechaParams = "";
+            if (desde.HasValue)
+                fechaParams += $"&desde={desde.Value:yyyy-MM-dd}";
+            if (hasta.HasValue)
+                fechaParams += $"&hasta={hasta.Value:yyyy-MM-dd}";
+
             // Usar el nombre correcto del controlador: AuditoriasItemBPM (con 's')
             var urls = new[]
             {
                 // Rutas con el controlador correcto
-                $"api/AuditoriasItemBPM/estado-nook-por-operario?legajo={legajo}",
-                $"AuditoriasItemBPM/estado-nook-por-operario?legajo={legajo}",
+                $"api/AuditoriasItemBPM/estado-nook-por-operario?legajo={legajo}{fechaParams}",
+                $"AuditoriasItemBPM/estado-nook-por-operario?legajo={legajo}{fechaParams}",
                 
                 // Variantes con Controller en el nombre
-                $"api/AuditoriasItemBPMController/estado-nook-por-operario?legajo={legajo}",
-                $"AuditoriasItemBPMController/estado-nook-por-operario?legajo={legajo}",
+                $"api/AuditoriasItemBPMController/estado-nook-por-operario?legajo={legajo}{fechaParams}",
+                $"AuditoriasItemBPMController/estado-nook-por-operario?legajo={legajo}{fechaParams}",
                 
                 // Rutas alternativas por si la ruta está en otro controlador
-                $"api/AuditoriaItemBPM/estado-nook-por-operario?legajo={legajo}",
-                $"AuditoriaItemBPM/estado-nook-por-operario?legajo={legajo}",
-                $"api/AuditoriaItemBPMController/estado-nook-por-operario?legajo={legajo}",
-                $"AuditoriaItemBPMController/estado-nook-por-operario?legajo={legajo}"
+                $"api/AuditoriaItemBPM/estado-nook-por-operario?legajo={legajo}{fechaParams}",
+                $"AuditoriaItemBPM/estado-nook-por-operario?legajo={legajo}{fechaParams}",
+                $"api/AuditoriaItemBPMController/estado-nook-por-operario?legajo={legajo}{fechaParams}",
+                $"AuditoriaItemBPMController/estado-nook-por-operario?legajo={legajo}{fechaParams}"
             };
 
             _logger?.LogInformation($"Intentando obtener items NoOk para el operario con legajo {legajo}");
