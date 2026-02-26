@@ -45,7 +45,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th class="ps-3">Descripción del Ítem</th>
-                                    <th class="text-center" style="width: 150px;">Ocurrencias</th>
+                                    <th class="text-center" style="width: 200px;">Nº de Auditoría</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -60,10 +60,36 @@
                                                   itemDict.ContainsKey("Descripcion") ? itemDict["Descripcion"].ToString() : "Sin descripción")</td>
                                             
                                             <td class="text-center">
-                                                <span class="badge bg-danger fs-6">
-                                                    @(itemDict.ContainsKey("count") ? itemDict["count"].ToString() : 
-                                                      itemDict.ContainsKey("Count") ? itemDict["Count"].ToString() : "0")
-                                                </span>
+                                                @{
+                                                    var idsAuditoria = new List<int>();
+                                                    if (itemDict.ContainsKey("idsAuditoria") && itemDict["idsAuditoria"].ValueKind == System.Text.Json.JsonValueKind.Array)
+                                                    {
+                                                        foreach (var id in itemDict["idsAuditoria"].EnumerateArray())
+                                                        {
+                                                            idsAuditoria.Add(id.GetInt32());
+                                                        }
+                                                    }
+                                                    else if (itemDict.ContainsKey("IdsAuditoria") && itemDict["IdsAuditoria"].ValueKind == System.Text.Json.JsonValueKind.Array)
+                                                    {
+                                                        foreach (var id in itemDict["IdsAuditoria"].EnumerateArray())
+                                                        {
+                                                            idsAuditoria.Add(id.GetInt32());
+                                                        }
+                                                    }
+                                                }
+                                                @if (idsAuditoria.Any())
+                                                {
+                                                    @foreach (var idAuditoria in idsAuditoria)
+                                                    {
+                                                        <a href="@Url.Action("Detalle", "DetalleAuditoria", new { id = idAuditoria })" class="badge bg-danger text-decoration-none me-1" title="Ver auditoría @idAuditoria">
+                                                            @idAuditoria
+                                                        </a>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Sin datos</span>
+                                                }
                                             </td>
                                         </tr>
                                     }

@@ -3,36 +3,9 @@
 <div class="container-fluid">
     <h2 class="h2 mb-2 mt-3 text-gray-800">Operarios sin Auditoría</h2>
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-            <h6 class="m-0 font-weight-bold text-primary">Filtros de Búsqueda</h6>
-        </div>
-        <div class="card-body">
-            <form method="get" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label">Desde:</label>
-                    <input type="date" name="desde" value="@ViewBag.Desde" class="form-control">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Hasta:</label>
-                    <input type="date" name="hasta" value="@ViewBag.Hasta" class="form-control">
-                </div>
-
-                <div class="col-md-2 d-flex">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="fas fa-search"></i> Buscar
-                    </button>
-                    <button type="button" id="btnLimpiar" class="btn btn-secondary">
-                        <i class="fas fa-undo"></i> Limpiar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     @if (ViewBag.Lineas != null && ViewBag.Lineas.Count > 0)
     {
-        <div class="card shadow mb-4">
+        <div class="card shadow mb-4 mt-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Filtrar por Línea</h6>
             </div>
@@ -143,21 +116,6 @@
                 }
             });
             
-            // Manejar clic en botón Limpiar
-            $('#btnLimpiar').on('click', function() {
-                // Limpiar los campos de fecha
-                $('input[name="desde"]').val('');
-                $('input[name="hasta"]').val('');
-                
-                // Resetear el filtro de línea seleccionando "Todas"
-                $('.linea-chip').removeClass('btn-primary').addClass('btn-outline-primary');
-                $('.linea-chip[data-linea=""]').removeClass('btn-outline-primary').addClass('btn-primary');
-                
-                // Limpiar el filtro de la tabla solo si está inicializada
-                if (table) {
-                    table.search('').columns().search('').draw();
-                }
-            });
         });
     </script>
 }
